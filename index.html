@@ -1,0 +1,1558 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MCH Executive Cockpit | لوحة قيادة المؤشرات</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+:root {
+    --ink-900: #0a1929; --ink-800: #102a43; --ink-700: #1e3a5f; --ink-600: #2c4a73;
+    --paper: #f8fafc; --card: #ffffff; --muted: #64748b; --line: #e2e8f0;
+    --gold: #c9a961; --gold-light: #f5edd6;
+    --teal: #0d9488; --crimson: #b91c1c; --amber: #d97706; --slate: #475569;
+    --ok: #16a34a; --warn: #f59e0b; --danger: #dc2626; --neutral: #64748b;
+    --safety: #b91c1c; --quality: #0d9488; --workforce: #d97706;
+    --operations: #2563eb; --finance: #7c3aed; --other: #64748b;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+html, body { height: 100%; }
+body { font-family: 'Cairo','Tajawal',sans-serif; background: var(--paper); color: var(--ink-900); line-height: 1.55; overflow-x: hidden; }
+.app { display: flex; min-height: 100vh; }
+
+/* SIDEBAR */
+.sidebar {
+    width: 240px; background: linear-gradient(180deg, var(--ink-900) 0%, var(--ink-800) 100%);
+    color: white; flex-shrink: 0; position: sticky; top: 0; height: 100vh;
+    overflow-y: auto; box-shadow: -4px 0 20px rgba(10,25,41,0.1);
+}
+.sidebar-header { padding: 22px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.brand { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.brand-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--gold) 0%, #b8964a 100%);
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; color: var(--ink-900); font-weight: 900; flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(201,169,97,0.3);
+}
+.brand-text { font-size: 0.88rem; font-weight: 800; letter-spacing: 0.3px; }
+.brand-sub { font-size: 0.72rem; color: rgba(255,255,255,0.6); }
+.sidebar-meta {
+    font-size: 0.72rem; color: rgba(255,255,255,0.55);
+    margin-top: 12px; padding-top: 12px;
+    border-top: 1px dashed rgba(255,255,255,0.1);
+}
+.sidebar-meta .live-status {
+    display: inline-flex; align-items: center; gap: 5px;
+    margin-top: 4px; font-weight: 600;
+}
+.live-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #16a34a; animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100% {opacity:1} 50% {opacity:0.4} }
+.nav { padding: 12px; }
+.nav-section {
+    font-size: 0.65rem; color: rgba(255,255,255,0.4);
+    text-transform: uppercase; letter-spacing: 1.2px;
+    padding: 14px 10px 6px; font-weight: 700;
+}
+.nav-item {
+    padding: 10px 12px; border-radius: 8px; cursor: pointer;
+    color: rgba(255,255,255,0.7); font-size: 0.86rem; font-weight: 500;
+    margin-bottom: 2px; display: flex; align-items: center; gap: 10px;
+    transition: all 0.15s; user-select: none;
+}
+.nav-item:hover { background: rgba(255,255,255,0.06); color: white; }
+.nav-item.active {
+    background: linear-gradient(90deg, rgba(201,169,97,0.2) 0%, rgba(201,169,97,0.05) 100%);
+    color: var(--gold); border-right: 3px solid var(--gold); font-weight: 700;
+}
+.nav-item .icon { width: 18px; text-align: center; font-size: 0.95rem; }
+.nav-item .badge {
+    margin-right: auto; background: rgba(255,255,255,0.1);
+    padding: 1px 6px; border-radius: 10px;
+    font-size: 0.65rem; font-weight: 600;
+}
+.nav-item.active .badge { background: var(--gold); color: var(--ink-900); }
+
+/* MAIN */
+.main { flex: 1; min-width: 0; padding: 28px 36px 60px; background: var(--paper); }
+.topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+}
+.page-title { font-size: 1.45rem; font-weight: 800; color: var(--ink-900); letter-spacing: -0.4px; }
+.page-subtitle { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
+.topbar-right { display: flex; gap: 10px; align-items: center; }
+.status-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: white; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--line); font-size: 0.78rem;
+    color: var(--muted); font-weight: 600;
+}
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--neutral); }
+.status-dot.live { background: var(--ok); animation: pulse 2s infinite; }
+.status-dot.warn { background: var(--warn); }
+.status-dot.err { background: var(--danger); }
+.btn {
+    background: white; border: 1px solid var(--line);
+    padding: 7px 14px; border-radius: 8px;
+    font-family: inherit; font-size: 0.82rem; font-weight: 600;
+    cursor: pointer; color: var(--ink-700); transition: all 0.15s;
+}
+.btn:hover { border-color: var(--ink-700); }
+.btn.primary { background: var(--ink-900); color: white; border-color: var(--ink-900); }
+.btn.primary:hover { background: var(--ink-700); }
+
+/* Period selector */
+.period-selector {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    margin-bottom: 18px;
+    background: white; padding: 10px 14px;
+    border-radius: 10px; border: 1px solid var(--line);
+    align-items: center;
+}
+.period-selector .label {
+    font-size: 0.78rem; font-weight: 700; color: var(--muted);
+    margin-left: 8px;
+}
+.period-btn {
+    padding: 6px 12px; border: 1.5px solid var(--line);
+    background: white; color: var(--muted); border-radius: 6px;
+    cursor: pointer; font-family: inherit; font-weight: 600;
+    font-size: 0.78rem; transition: all 0.15s;
+}
+.period-btn:hover { color: var(--ink-700); border-color: var(--ink-700); }
+.period-btn.active { background: var(--ink-900); color: white; border-color: var(--ink-900); }
+
+/* EXEC TILES */
+.exec-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 16px; margin-bottom: 20px;
+}
+@media (max-width: 1100px) { .exec-grid { grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 700px) { .exec-grid { grid-template-columns: 1fr; } }
+.kpi-tile {
+    background: white; border-radius: 14px; padding: 22px;
+    border: 1px solid var(--line); position: relative; overflow: hidden;
+}
+.kpi-tile::before {
+    content: ''; position: absolute; top: 0; right: 0;
+    width: 100px; height: 100px;
+    background: radial-gradient(circle, rgba(201,169,97,0.08) 0%, transparent 70%);
+    pointer-events: none;
+}
+.kpi-tile .label { font-size: 0.78rem; color: var(--muted); font-weight: 600; letter-spacing: 0.3px; margin-bottom: 8px; }
+.kpi-tile .value { font-family: 'Tajawal',sans-serif; font-size: 2.4rem; font-weight: 900; color: var(--ink-900); line-height: 1; margin-bottom: 6px; }
+.kpi-tile .ctx { font-size: 0.78rem; color: var(--muted); }
+.kpi-tile.accent { background: linear-gradient(135deg, var(--ink-900) 0%, var(--ink-700) 100%); color: white; }
+.kpi-tile.accent .label { color: rgba(255,255,255,0.7); }
+.kpi-tile.accent .value { color: var(--gold); }
+.kpi-tile.accent .ctx { color: rgba(255,255,255,0.6); }
+.kpi-tile.success .value { color: var(--ok); }
+.kpi-tile.warn .value { color: var(--warn); }
+.kpi-tile.danger .value { color: var(--danger); }
+
+/* SECTION */
+.section { background: white; border-radius: 14px; border: 1px solid var(--line); margin-bottom: 20px; overflow: hidden; }
+.section-head {
+    padding: 18px 24px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px;
+}
+.section-title {
+    font-size: 1rem; font-weight: 800; color: var(--ink-900);
+    display: flex; align-items: center; gap: 10px;
+}
+.section-title::before { content: ''; width: 4px; height: 18px; background: var(--gold); border-radius: 2px; }
+.section-sub { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+.section-body { padding: 22px 24px; }
+.section-body.no-pad { padding: 0; }
+
+.chart-row {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 16px; margin-bottom: 20px;
+}
+@media (max-width: 1000px) { .chart-row { grid-template-columns: 1fr; } }
+.chart-wrap { position: relative; height: 300px; }
+.chart-wrap.tall { height: 400px; }
+
+.list-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+}
+@media (max-width: 900px) { .list-grid { grid-template-columns: 1fr; } }
+.list-card { border-radius: 12px; padding: 18px; border: 1px solid var(--line); }
+.list-card.strength { background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%); border-color: #bbf7d0; }
+.list-card.weakness { background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%); border-color: #fecaca; }
+.list-title { font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
+.list-card.strength .list-title { color: #15803d; }
+.list-card.weakness .list-title { color: #b91c1c; }
+.list-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px dashed var(--line); font-size: 0.86rem; }
+.list-item:last-child { border-bottom: 0; }
+.list-rank {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+    background: white; border: 1.5px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 0.8rem;
+}
+.list-card.strength .list-rank { border-color: #86efac; color: #15803d; }
+.list-card.weakness .list-rank { border-color: #fca5a5; color: #b91c1c; }
+.list-content { flex: 1; }
+.list-content .name { font-weight: 700; color: var(--ink-900); margin-bottom: 2px; }
+.list-content .meta { color: var(--muted); font-size: 0.75rem; }
+.list-content .stat {
+    display: inline-block; margin-top: 4px; padding: 2px 8px;
+    border-radius: 4px; font-size: 0.75rem; font-weight: 700;
+    background: white; border: 1px solid var(--line);
+}
+.rec-grid { display: grid; gap: 12px; }
+.rec-item {
+    background: linear-gradient(135deg, var(--gold-light) 0%, #fffdf7 100%);
+    border: 1px solid #e6d5a8; border-radius: 10px;
+    padding: 14px 18px; display: flex; gap: 14px; align-items: flex-start;
+}
+.rec-icon {
+    flex-shrink: 0; width: 32px; height: 32px;
+    border-radius: 8px; background: var(--gold); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 0.95rem;
+}
+.rec-content { flex: 1; }
+.rec-title { font-weight: 800; color: var(--ink-900); margin-bottom: 2px; font-size: 0.92rem; }
+.rec-desc { font-size: 0.85rem; color: var(--slate); }
+
+/* FILTERS */
+.filter-bar {
+    background: white; border-radius: 12px; padding: 14px 18px;
+    border: 1px solid var(--line); display: flex; gap: 10px;
+    align-items: center; flex-wrap: wrap; margin-bottom: 18px;
+}
+.filter-bar select, .filter-bar input {
+    padding: 7px 12px; border: 1px solid var(--line); border-radius: 7px;
+    font-family: inherit; font-size: 0.82rem; background: white;
+    color: var(--ink-700); cursor: pointer;
+}
+.filter-bar input { cursor: text; flex: 1; min-width: 200px; }
+.filter-bar select:focus, .filter-bar input:focus {
+    outline: 2px solid var(--gold); outline-offset: -1px; border-color: transparent;
+}
+
+/* KPI CARDS */
+.kpi-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: 16px;
+}
+.kpi-card {
+    background: white; border-radius: 12px; border: 1px solid var(--line);
+    padding: 18px 20px; cursor: pointer; transition: all 0.18s ease;
+    position: relative; overflow: hidden;
+}
+.kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(10,25,41,0.08); border-color: var(--ink-700); }
+.kpi-card.status-on_target { border-right: 4px solid var(--ok); }
+.kpi-card.status-near_target { border-right: 4px solid var(--warn); }
+.kpi-card.status-below_target, .kpi-card.status-above_target { border-right: 4px solid var(--amber); }
+.kpi-card.status-far_below, .kpi-card.status-far_above { border-right: 4px solid var(--danger); }
+.kpi-card.status-unknown { border-right: 4px solid var(--neutral); }
+.kpi-card-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.kpi-card-meta { font-size: 0.7rem; color: var(--muted); font-weight: 600; letter-spacing: 0.3px; }
+.kpi-card .name { font-size: 0.95rem; font-weight: 700; color: var(--ink-900); margin-bottom: 4px; line-height: 1.4; }
+.kpi-card .sub { font-size: 0.78rem; color: var(--muted); margin-bottom: 12px; }
+.status-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 4px;
+    font-size: 0.7rem; font-weight: 700;
+}
+.status-tag.on_target { background: #dcfce7; color: #15803d; }
+.status-tag.near_target { background: #fef3c7; color: #92400e; }
+.status-tag.below_target, .status-tag.above_target { background: #fed7aa; color: #9a3412; }
+.status-tag.far_below, .status-tag.far_above { background: #fecaca; color: #991b1b; }
+.status-tag.unknown { background: #f1f5f9; color: var(--muted); }
+.kpi-bench {
+    background: var(--paper); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px; margin-bottom: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 8px; font-size: 0.78rem;
+}
+.kpi-bench .b-label { color: var(--muted); font-weight: 600; }
+.kpi-bench .b-value { font-weight: 800; color: var(--ink-900); font-family: 'Tajawal',sans-serif; }
+.gap-meter { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; position: relative; margin-top: 6px; }
+.gap-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.gap-fill.on_target { background: var(--ok); }
+.gap-fill.near_target { background: var(--warn); }
+.gap-fill.below_target, .gap-fill.above_target { background: var(--amber); }
+.gap-fill.far_below, .gap-fill.far_above { background: var(--danger); }
+
+.months-row {
+    display: grid; gap: 4px; margin-top: 10px;
+}
+.months-row.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.months-row.cols-4 { grid-template-columns: repeat(4, 1fr); }
+.months-row.cols-6 { grid-template-columns: repeat(6, 1fr); }
+.months-row.cols-12 { grid-template-columns: repeat(12, 1fr); }
+.month-cell {
+    background: var(--paper); border: 1px solid var(--line);
+    border-radius: 5px; padding: 5px 2px; text-align: center;
+}
+.month-cell.empty { opacity: 0.4; }
+.month-cell.has-data { background: linear-gradient(180deg, #fafbfc 0%, white 100%); }
+.month-cell .ml { font-size: 0.55rem; color: var(--muted); font-weight: 700; letter-spacing: 0.3px; display: block; margin-bottom: 1px; }
+.month-cell .mv { font-size: 0.72rem; font-weight: 800; font-family: 'Tajawal',sans-serif; color: var(--ink-900); direction: ltr; }
+@media (max-width: 1200px) {
+    .months-row.cols-12 { grid-template-columns: repeat(6, 1fr); }
+    .months-row.cols-12 .month-cell:nth-child(n+13) { display: none; }
+}
+
+.kpi-trend {
+    margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line);
+    font-size: 0.78rem; display: flex; justify-content: space-between;
+}
+
+/* GAP TABLE */
+.gap-summary {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 12px; margin-bottom: 20px;
+}
+@media (max-width: 1100px) { .gap-summary { grid-template-columns: repeat(3,1fr); } }
+@media (max-width: 700px) { .gap-summary { grid-template-columns: repeat(2,1fr); } }
+.gap-card { background: white; border-radius: 12px; padding: 14px 16px; border: 1px solid var(--line); text-align: center; }
+.gap-card .num { font-size: 2rem; font-weight: 900; font-family: 'Tajawal',sans-serif; line-height: 1; }
+.gap-card.on .num { color: var(--ok); }
+.gap-card.near .num { color: var(--warn); }
+.gap-card.below .num { color: var(--amber); }
+.gap-card.far .num { color: var(--danger); }
+.gap-card.unk .num { color: var(--muted); }
+.gap-card .lbl { font-size: 0.78rem; color: var(--muted); margin-top: 4px; font-weight: 600; }
+.gap-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.gap-table th { background: var(--paper); padding: 10px 14px; text-align: right; font-weight: 800; color: var(--ink-700); font-size: 0.78rem; border-bottom: 2px solid var(--line); }
+.gap-table td { padding: 12px 14px; border-bottom: 1px solid var(--line); color: var(--ink-900); }
+.gap-table tr:hover { background: var(--paper); cursor: pointer; }
+.gap-cell-status {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 4px;
+    font-size: 0.75rem; font-weight: 700;
+}
+
+/* MODAL */
+.modal-overlay {
+    position: fixed; inset: 0; background: rgba(10,25,41,0.65);
+    backdrop-filter: blur(6px); display: none;
+    justify-content: center; align-items: center;
+    z-index: 1000; padding: 20px;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+    background: white; border-radius: 16px;
+    max-width: 850px; width: 100%; max-height: 92vh;
+    overflow-y: auto; box-shadow: 0 30px 80px rgba(0,0,0,0.4);
+}
+.modal-head {
+    padding: 22px 28px 18px; border-bottom: 1px solid var(--line);
+    background: linear-gradient(135deg, var(--ink-900) 0%, var(--ink-700) 100%);
+    color: white; border-radius: 16px 16px 0 0; position: relative;
+}
+.modal-head .close {
+    position: absolute; top: 16px; left: 18px;
+    background: rgba(255,255,255,0.15); border: 0; color: white;
+    width: 30px; height: 30px; border-radius: 50%;
+    cursor: pointer; font-size: 1.1rem;
+}
+.modal-head h3 { font-size: 1.15rem; margin-bottom: 6px; padding-left: 40px; }
+.modal-head .meta { font-size: 0.82rem; opacity: 0.85; padding-left: 40px; }
+.modal-body { padding: 24px 28px; }
+.modal-block { margin-bottom: 24px; }
+.modal-block h4 {
+    font-size: 0.78rem; color: var(--muted);
+    font-weight: 800; letter-spacing: 0.5px; margin-bottom: 8px;
+}
+.modal-block p { font-size: 0.9rem; color: var(--ink-800); line-height: 1.7; }
+.bench-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 6px; margin-top: 6px;
+}
+@media (max-width: 700px) { .bench-grid { grid-template-columns: repeat(2,1fr); } }
+.bench-cell {
+    padding: 10px 12px; border-radius: 8px; text-align: center;
+    border: 1.5px solid var(--line); font-size: 0.78rem;
+}
+.bench-cell .bl { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.bench-cell .bv { font-weight: 700; font-size: 0.85rem; }
+.bench-cell.lvl-1 { background: #f0fdf4; border-color: #86efac; } .bench-cell.lvl-1 .bl { color: #166534; }
+.bench-cell.lvl-2 { background: #fefce8; border-color: #fde047; } .bench-cell.lvl-2 .bl { color: #854d0e; }
+.bench-cell.lvl-3 { background: #fff7ed; border-color: #fdba74; } .bench-cell.lvl-3 .bl { color: #9a3412; }
+.bench-cell.lvl-4 { background: #fef2f2; border-color: #fca5a5; } .bench-cell.lvl-4 .bl { color: #991b1b; }
+.values-table { width: 100%; border-collapse: collapse; }
+.values-table th, .values-table td { padding: 8px 12px; text-align: right; font-size: 0.85rem; border-bottom: 1px solid var(--line); }
+.values-table th { background: var(--paper); font-weight: 800; color: var(--muted); }
+
+/* LOADING */
+.loading { text-align: center; padding: 80px 20px; color: var(--muted); }
+.spinner {
+    display: inline-block; width: 40px; height: 40px;
+    border: 4px solid var(--line); border-top-color: var(--ink-700);
+    border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 0.9rem; }
+.error-box {
+    background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px;
+    padding: 18px 22px; color: #991b1b; max-width: 600px; margin: 0 auto;
+    text-align: right; font-size: 0.9rem; line-height: 1.8;
+}
+
+.page { display: none; }
+.page.active { display: block; animation: fadeIn 0.3s; }
+@keyframes fadeIn { from { opacity:0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+.menu-toggle {
+    display: none; background: var(--ink-900); color: white;
+    border: 0; padding: 8px 12px; border-radius: 8px; cursor: pointer;
+}
+@media (max-width: 800px) {
+    .sidebar { position: fixed; left: -240px; top: 0; bottom: 0; transition: left 0.3s; z-index: 100; }
+    .sidebar.open { left: 0; }
+    .menu-toggle { display: inline-block; }
+    .main { padding: 20px 18px 60px; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="brand">
+                <div class="brand-icon">M</div>
+                <div>
+                    <div class="brand-text">MCH Cockpit</div>
+                    <div class="brand-sub">Performance Hub</div>
+                </div>
+            </div>
+            <div class="sidebar-meta">
+                <div>السنة 2026</div>
+                <div class="live-status"><span class="live-dot" id="live-indicator"></span> <span id="live-text">جارٍ الاتصال...</span></div>
+                <div id="last-update-side" style="margin-top:4px;">—</div>
+            </div>
+        </div>
+        <nav class="nav">
+            <div class="nav-section">الرئيسية</div>
+            <div class="nav-item active" data-page="executive">
+                <span class="icon">📊</span> الموجز التنفيذي
+            </div>
+            <div class="nav-item" data-page="kpis">
+                <span class="icon">📈</span> المؤشرات
+                <span class="badge" id="nav-kpi-count">—</span>
+            </div>
+            <div class="nav-item" data-page="gap">
+                <span class="icon">🎯</span> تحليل الفجوة
+                <span class="badge" id="nav-gap-count">—</span>
+            </div>
+            <div class="nav-item" data-page="trends">
+                <span class="icon">📉</span> الاتجاهات السنوية
+            </div>
+            <div class="nav-section">المؤشرات حسب التصنيف</div>
+            <div class="nav-item" data-page="kpis" data-class="سلامة المرضى">
+                <span class="icon" style="color:var(--safety);">●</span> سلامة المرضى
+            </div>
+            <div class="nav-item" data-page="kpis" data-class="جودة الخدمات الصحية">
+                <span class="icon" style="color:var(--quality);">●</span> جودة الخدمات
+            </div>
+            <div class="nav-item" data-page="kpis" data-class="القوى العاملة والكوادر">
+                <span class="icon" style="color:var(--workforce);">●</span> القوى العاملة
+            </div>
+            <div class="nav-item" data-page="kpis" data-class="العمليات والكفاءة التشغيلية">
+                <span class="icon" style="color:var(--operations);">●</span> العمليات
+            </div>
+            <div class="nav-section">المعلومات</div>
+            <div class="nav-item" data-page="about">
+                <span class="icon">ℹ️</span> عن الداشبورد
+            </div>
+        </nav>
+    </aside>
+
+    <main class="main">
+        <div class="topbar">
+            <div>
+                <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+                <span class="page-title" id="page-title">الموجز التنفيذي</span>
+                <div class="page-subtitle" id="page-subtitle">نظرة شاملة على أداء 2026</div>
+            </div>
+            <div class="topbar-right">
+                <span class="status-pill"><span class="status-dot live" id="status-dot"></span> <span id="status-text">جارٍ التحميل</span></span>
+                <button class="btn primary" onclick="loadData()">⟳ تحديث</button>
+            </div>
+        </div>
+
+        <div id="loading-state" class="loading">
+            <div class="spinner"></div>
+            <div>جارٍ تحميل البيانات من Google Sheets...</div>
+        </div>
+
+        <div id="error-state" style="display:none; padding: 60px 20px;">
+            <div class="error-box">
+                <strong>⚠ تعذّر تحميل البيانات</strong>
+                <div id="error-message" style="margin-top:8px; font-size:0.85rem;"></div>
+                <button class="btn primary" style="margin-top:14px;" onclick="loadData()">⟳ إعادة المحاولة</button>
+            </div>
+        </div>
+
+        <div id="content" style="display:none;">
+            <!-- Period selector (shows on relevant pages) -->
+            <div class="period-selector" id="period-selector" style="display:none;">
+                <span class="label">📅 الفترة:</span>
+                <button class="period-btn" data-period="latest" onclick="setPeriod('latest')">آخر شهر متاح</button>
+                <button class="period-btn active" data-period="all" onclick="setPeriod('all')">كل الأشهر</button>
+                <button class="period-btn" data-period="Q1" onclick="setPeriod('Q1')">Q1 (JAN-MAR)</button>
+                <button class="period-btn" data-period="Q2" onclick="setPeriod('Q2')">Q2 (APR-JUN)</button>
+                <button class="period-btn" data-period="Q3" onclick="setPeriod('Q3')">Q3 (JUL-SEP)</button>
+                <button class="period-btn" data-period="Q4" onclick="setPeriod('Q4')">Q4 (OCT-DEC)</button>
+                <button class="period-btn" data-period="H1" onclick="setPeriod('H1')">النصف الأول</button>
+                <button class="period-btn" data-period="H2" onclick="setPeriod('H2')">النصف الثاني</button>
+            </div>
+
+            <!-- EXECUTIVE PAGE -->
+            <div class="page active" id="page-executive">
+                <div class="exec-grid" id="exec-tiles"></div>
+                <div class="chart-row">
+                    <div class="section">
+                        <div class="section-head">
+                            <div>
+                                <div class="section-title">توزيع المؤشرات حسب التصنيف</div>
+                                <div class="section-sub">عدد المؤشرات في كل فئة</div>
+                            </div>
+                        </div>
+                        <div class="section-body"><div class="chart-wrap"><canvas id="execChartClass"></canvas></div></div>
+                    </div>
+                    <div class="section">
+                        <div class="section-head">
+                            <div>
+                                <div class="section-title">حالة الأداء مقابل المعايير</div>
+                                <div class="section-sub">المؤشرات القابلة للتقييم</div>
+                            </div>
+                        </div>
+                        <div class="section-body"><div class="chart-wrap"><canvas id="execChartGap"></canvas></div></div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-head">
+                        <div>
+                            <div class="section-title">نقاط القوة وفرص التحسين</div>
+                            <div class="section-sub">أبرز 3 إنجازات و 3 مجالات تحتاج تدخل</div>
+                        </div>
+                    </div>
+                    <div class="section-body">
+                        <div class="list-grid">
+                            <div class="list-card strength">
+                                <div class="list-title">✅ أبرز نقاط القوة</div>
+                                <div id="top-strengths"></div>
+                            </div>
+                            <div class="list-card weakness">
+                                <div class="list-title">⚠ مجالات تحتاج تحسين</div>
+                                <div id="top-weaknesses"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-head">
+                        <div>
+                            <div class="section-title">التوصيات التنفيذية</div>
+                        </div>
+                    </div>
+                    <div class="section-body">
+                        <div class="rec-grid" id="recommendations"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPIs PAGE -->
+            <div class="page" id="page-kpis">
+                <div class="filter-bar">
+                    <select id="filter-class"><option value="">كل الفئات</option></select>
+                    <select id="filter-sheet"><option value="">كل المصادر</option></select>
+                    <select id="filter-status">
+                        <option value="">كل حالات الأداء</option>
+                        <option value="on_target">✅ ضمن الهدف</option>
+                        <option value="near_target">🟡 قريب من الهدف</option>
+                        <option value="below_target,above_target">🟠 يحتاج تحسين</option>
+                        <option value="far_below,far_above">🔴 بعيد عن الهدف</option>
+                        <option value="unknown">⬜ بدون بيانات</option>
+                    </select>
+                    <input type="text" id="search" placeholder="بحث في المؤشرات..." />
+                    <button class="btn" onclick="resetFilters()">مسح</button>
+                </div>
+                <div id="kpi-list" class="kpi-grid"></div>
+            </div>
+
+            <!-- GAP PAGE -->
+            <div class="page" id="page-gap">
+                <div class="gap-summary" id="gap-summary"></div>
+                <div class="section">
+                    <div class="section-head">
+                        <div>
+                            <div class="section-title">تحليل الفجوة التفصيلي</div>
+                            <div class="section-sub">المؤشرات مرتبة حسب الأولوية</div>
+                        </div>
+                    </div>
+                    <div class="section-body no-pad" style="overflow-x:auto;">
+                        <table class="gap-table" id="gap-table"></table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TRENDS PAGE -->
+            <div class="page" id="page-trends">
+                <div class="section">
+                    <div class="section-head">
+                        <div>
+                            <div class="section-title">المتوسط الشهري للأداء — السنة الكاملة</div>
+                            <div class="section-sub">متوسط القيم النسبية (المؤشرات % من 0 إلى 1) لكل شهر</div>
+                        </div>
+                    </div>
+                    <div class="section-body"><div class="chart-wrap tall"><canvas id="trendsChart"></canvas></div></div>
+                </div>
+                <div class="section">
+                    <div class="section-head">
+                        <div>
+                            <div class="section-title">الأداء الشهري حسب التصنيف</div>
+                        </div>
+                    </div>
+                    <div class="section-body"><div class="chart-wrap tall"><canvas id="trendsByClassChart"></canvas></div></div>
+                </div>
+            </div>
+
+            <!-- ABOUT -->
+            <div class="page" id="page-about">
+                <div class="section">
+                    <div class="section-body" style="padding:30px;">
+                        <h2 style="margin-bottom:14px;">عن لوحة قيادة MCH</h2>
+                        <p style="color:var(--slate); line-height:1.9; font-size:0.92rem;">
+                            لوحة قيادة تفاعلية لمؤشرات الأداء الرئيسية لمستشفى الولادة والأطفال (MCH) لعام 2026.
+                            البيانات متصلة مباشرة بـ Google Sheets للحصول على تحديثات تلقائية للأشهر الجديدة.
+                        </p>
+                        <h3 style="margin-top:20px; margin-bottom:8px;">المصادر</h3>
+                        <ul style="padding-right:24px; color:var(--slate); line-height:2;">
+                            <li>QFR — مؤشرات الجودة المالية والإدارية</li>
+                            <li>Adaa Health — برنامج أداء الصحة (OR, ED, LAB, BB, RAD, HHC)</li>
+                            <li>HQI — مؤشر جودة الرعاية الصحية</li>
+                            <li>PBP — Performance Based Payment</li>
+                            <li>Clinical Audit — التدقيق الإكلينيكي</li>
+                        </ul>
+                        <h3 style="margin-top:20px; margin-bottom:8px;">الاتصال المباشر</h3>
+                        <p style="color:var(--slate); line-height:1.9;">
+                            الداشبورد يحدّث البيانات تلقائياً كل دقيقتين من Google Sheets. عند إضافة قيم جديدة في Google Sheets،
+                            ستظهر في الداشبورد دون أي تدخل يدوي. زر التحديث يُجبر التحديث الفوري.
+                        </p>
+                        <div id="data-info" style="margin-top:20px; padding:16px; background:var(--paper); border-radius:8px; font-size:0.85rem; line-height:1.8;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<div class="modal-overlay" id="modal" onclick="if(event.target===this) closeModal()">
+    <div class="modal">
+        <div class="modal-head">
+            <button class="close" onclick="closeModal()">×</button>
+            <h3 id="modal-title"></h3>
+            <div class="meta" id="modal-meta"></div>
+        </div>
+        <div class="modal-body" id="modal-body"></div>
+    </div>
+</div>
+
+<script>
+// ============ CONFIG — LIVE GOOGLE SHEETS CONNECTION ============
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTNp9OK-DtVQtiAMxUDK_RmRO1asnvssDyMKr2m418nqBXWSlFGYGKdyx504ZUI8oZxTAev_CVZN-01/pub?output=csv';
+// Fallback CORS proxies
+const CORS_PROXIES = [
+    'https://api.allorigins.win/raw?url=',
+    'https://corsproxy.io/?',
+    'https://api.codetabs.com/v1/proxy/?quest='
+];
+const AUTO_REFRESH_MS = 120000; // 2 minutes
+
+// All months we look for in CSV (must match column headers)
+const ALL_MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+const MONTH_AR = {JAN:'يناير',FEB:'فبراير',MAR:'مارس',APR:'أبريل',MAY:'مايو',JUN:'يونيو',JUL:'يوليو',AUG:'أغسطس',SEP:'سبتمبر',OCT:'أكتوبر',NOV:'نوفمبر',DEC:'ديسمبر'};
+const PERIOD_MONTHS = {
+    Q1: ['JAN','FEB','MAR'],
+    Q2: ['APR','MAY','JUN'],
+    Q3: ['JUL','AUG','SEP'],
+    Q4: ['OCT','NOV','DEC'],
+    H1: ['JAN','FEB','MAR','APR','MAY','JUN'],
+    H2: ['JUL','AUG','SEP','OCT','NOV','DEC'],
+    all: ALL_MONTHS
+};
+
+const CLASS_INFO = {
+    'سلامة المرضى': {key:'safety', color:'#b91c1c', desc:'فعالية الإجراءات الوقائية والممارسات السريرية'},
+    'جودة الخدمات الصحية': {key:'quality', color:'#0d9488', desc:'تجربة المريض وجودة الرعاية'},
+    'القوى العاملة والكوادر': {key:'workforce', color:'#d97706', desc:'كفاية الكوادر ونسب الموظفين'},
+    'العمليات والكفاءة التشغيلية': {key:'operations', color:'#2563eb', desc:'استخدام الموارد والكفاءة التشغيلية'},
+    'الموارد المالية': {key:'finance', color:'#7c3aed', desc:'الجوانب المالية للأداء'},
+    'أخرى / مؤشرات عامة': {key:'other', color:'#64748b', desc:'مؤشرات عامة'}
+};
+const STATUS_INFO = {
+    on_target: {label:'ضمن الهدف', icon:'✅', tone:'on'},
+    near_target: {label:'قريب من الهدف', icon:'🟡', tone:'near'},
+    below_target: {label:'أقل من الهدف', icon:'🟠', tone:'below'},
+    above_target: {label:'فوق الهدف', icon:'🟠', tone:'below'},
+    far_below: {label:'بعيد عن الهدف', icon:'🔴', tone:'far'},
+    far_above: {label:'بعيد عن الهدف', icon:'🔴', tone:'far'},
+    unknown: {label:'بدون تقييم', icon:'⬜', tone:'unk'}
+};
+
+// ============ STATE ============
+let KPI_DATA = [];
+// Embedded fallback data extracted directly from Google Drive (MCH-KPI-2026)
+const EMBEDDED_KPIS = [{"s":"QFR","cat":"Hospital Readiness & capacity","id":"","k":"% ICU Readiness for Healthcare","sub":"MCH","v":{"2026-01":1.0,"2026-02":1.0,"2026-03":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-1","target_text":"≥ 90%","target_parsed":{"raw":"≥ 90%","direction":"higher_better","value":0.9},"levels":{"l1":"≥ 90%","l2":"85-89.9%","l3":"80-84.9%","l4":"< 80%"}},"gap":{"status":"on_target","gap":0.09999999999999998,"latest":1.0,"target":0.9},"cls":"العمليات والكفاءة التشغيلية"},{"s":"QFR","cat":"Hospital Readiness & capacity","id":"","k":"% ED Readiness for Healthcare","sub":"MCH","v":{"2026-01":0.973,"2026-02":0.9801,"2026-03":0.989},"bm":{"source":"BENCH","kpi_id":"QFR-1","target_text":"≥ 90%","target_parsed":{"raw":"≥ 90%","direction":"higher_better","value":0.9},"levels":{"l1":"≥ 90%","l2":"85-89.9%","l3":"80-84.9%","l4":"< 80%"}},"gap":{"status":"on_target","gap":0.08899999999999997,"latest":0.989,"target":0.9},"cls":"العمليات والكفاءة التشغيلية"},{"s":"QFR","cat":"Hospital Readiness & capacity","id":"","k":"% Emergency Preparedness","sub":"MCH","v":{"2026-03":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-5","target_text":"≥ 90%","target_parsed":{"raw":"≥ 90%","direction":"higher_better","value":0.9},"levels":{"l1":"≥ 90%","l2":"80-89.9%","l3":"70-79.9%","l4":"< 70%"}},"gap":{"status":"on_target","gap":0.09999999999999998,"latest":1.0,"target":0.9},"cls":"العمليات والكفاءة التشغيلية"},{"s":"QFR","cat":"Hospital Readiness & capacity","id":"","k":"Clinics to patient ratio","sub":"MCH","v":{"2026-01":0.0098,"2026-02":0.0876,"2026-03":0.1395},"bm":{"source":"BENCH","kpi_id":"QFR-53","target_text":"Variation from per baseline","target_parsed":{"raw":"Variation from per baseline","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.1395},"cls":"القوى العاملة والكوادر"},{"s":"QFR","cat":"Hospital Readiness & capacity","id":"","k":"Morgue Capacity","sub":"MCH","v":{"2026-01":0.119,"2026-02":0.02,"2026-03":0.018},"bm":{"source":"BENCH","kpi_id":"QFR-63","target_text":"< 30%","target_parsed":{"raw":"< 30%","direction":"lower_better","value":0.3},"levels":{"l1":"< 30%","l2":"30-50%","l3":"51-69%)","l4":"≥ 70% (for 3 consecutive days)"}},"gap":{"status":"on_target","gap":0.282,"latest":0.018,"target":0.3},"cls":"العمليات والكفاءة التشغيلية"},{"s":"QFR","cat":"Hospital Readiness & capacity","id":"","k":"% ICU Occupancy","sub":"MCH","v":{"2026-01":0.5685,"2026-02":0.5357,"2026-03":0.4677},"bm":{"source":"BENCH","kpi_id":"QFR-9","target_text":"< 80%","target_parsed":{"raw":"< 80%","direction":"lower_better","value":0.8},"levels":{"l1":"< 80%","l2":"80-89.9%","l3":"90-94.9%","l4":"95-100%"}},"gap":{"status":"on_target","gap":0.33230000000000004,"latest":0.4677,"target":0.8},"cls":"العمليات والكفاءة التشغيلية"},{"s":"QFR","cat":"Hospital Readiness & capacity","id":"","k":"% Ward Occupancy","sub":"MCH","v":{"2026-01":0.8734,"2026-02":0.9123,"2026-03":0.8013},"bm":{"source":"BENCH","kpi_id":"QFR-10","target_text":"< 80%","target_parsed":{"raw":"< 80%","direction":"lower_better","value":0.8},"levels":{"l1":"< 80%","l2":"80-89.9%","l3":"90-94.9%","l4":"95-100%"}},"gap":{"status":"near_target","gap":-0.0012999999999999678,"latest":0.8013,"target":0.8},"cls":"العمليات والكفاءة التشغيلية"},{"s":"QFR","cat":"Hospital Readiness & capacity","id":"","k":"ALOS PICU - Average LOS (Length of Stay)","sub":"MCH","v":{"2026-01":4.41,"2026-02":4.8,"2026-03":4.0},"bm":{"source":"BENCH","kpi_id":"QFR-11","target_text":"3-5 days","target_parsed":{"raw":"3-5 days","direction":null,"value":3.0},"levels":{"l1":"3-5 days","l2":"6 days","l3":"7 days","l4":"> 7 days"}},"gap":{"status":"unknown","gap":null,"latest":4.0},"cls":"العمليات والكفاءة التشغيلية"},{"s":"QFR","cat":"Hospital Readiness & capacity","id":"","k":"ALOS Inpatient - Average LOS (Length of Stay)","sub":"MCH","v":{"2026-01":4.32,"2026-02":3.97,"2026-03":3.75},"bm":{"source":"BENCH","kpi_id":"QFR-12","target_text":"3-5 days","target_parsed":{"raw":"3-5 days","direction":null,"value":3.0},"levels":{"l1":"3-5 days","l2":"7 days","l3":"8 days","l4":"> 7 days"}},"gap":{"status":"unknown","gap":null,"latest":3.75},"cls":"العمليات والكفاءة التشغيلية"},{"s":"QFR","cat":"Hospital Readiness & capacity","id":"","k":"% Chronic patients discharged","sub":"MCH","v":{"2026-01":0.2222,"2026-02":0.357,"2026-03":0.1765},"bm":{"source":"BENCH","kpi_id":"QFR-23","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.1765},"cls":"العمليات والكفاءة التشغيلية"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"Average waiting time for an appointment (Primary Care)","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-16","target_text":"0-5 Days","target_parsed":{"raw":"0-5 Days","direction":null,"value":0.0},"levels":{"l1":"0-5 Days","l2":"6-9 Days","l3":"10-13days","l4":"≥ 14 days"}},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"جودة الخدمات الصحية"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"% Patients waiting for Elective Surgeries within 36 days","sub":"MCH","v":{"2026-01":1.0,"2026-02":1.0,"2026-03":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-17","target_text":"≥ 85%","target_parsed":{"raw":"≥ 85%","direction":"higher_better","value":0.85},"levels":{"l1":"≥ 85%","l2":"65-84.9%","l3":"50-64.9%","l4":"< 50%"}},"gap":{"status":"on_target","gap":0.15000000000000002,"latest":1.0,"target":0.85},"cls":"جودة الخدمات الصحية"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"Admission Rate","sub":"MCH","v":{"2026-01":0.0759,"2026-02":0.0551,"2026-03":0.0637},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0637},"cls":"العمليات والكفاءة التشغيلية"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"Admission Rejection Rate","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"سلامة المرضى"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"% ED Closure Time","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-6","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"العمليات والكفاءة التشغيلية"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"% Boarding Patients (Patients who have an admission order and waiting for bed in ED)","sub":"MCH","v":{"2026-01":0.0612,"2026-02":0.1086,"2026-03":0.0883},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0883},"cls":"العمليات والكفاءة التشغيلية"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"% Patients disposed within 4 hours","sub":"MCH","v":{"2026-01":0.9312,"2026-02":0.97,"2026-03":0.9748},"bm":{"source":"BENCH","kpi_id":"QFR-15","target_text":"≥ 75%","target_parsed":{"raw":"≥ 75%","direction":"higher_better","value":0.75},"levels":{"l1":"≥ 75%","l2":"67-74.9%","l3":"60-66.9%","l4":"<60%"}},"gap":{"status":"on_target","gap":0.2248,"latest":0.9748,"target":0.75},"cls":"أخرى / مؤشرات عامة"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"% All patients who re-attended emergency room within 72 hours","sub":"MCH","v":{"2026-01":0.019,"2026-02":0.0216,"2026-03":0.0051},"bm":{"source":"BENCH","kpi_id":"QFR-15","target_text":"≥ 75%","target_parsed":{"raw":"≥ 75%","direction":"higher_better","value":0.75},"levels":{"l1":"≥ 75%","l2":"67-74.9%","l3":"60-66.9%","l4":"<60%"}},"gap":{"status":"far_below","gap":-0.7449,"latest":0.0051,"target":0.75},"cls":"أخرى / مؤشرات عامة"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"Lab TAT","sub":"MCH","v":{"2026-01":1.0,"2026-02":1.0,"2026-03":1.0},"bm":null,"gap":{"status":"unknown","gap":null,"latest":1.0},"cls":"جودة الخدمات الصحية"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"Radiology TAT","sub":"MCH","v":{"2026-01":0.8,"2026-02":0.7,"2026-03":0.53},"bm":{"source":"BENCH","kpi_id":"QFR-41","target_text":"≤ 1 hour","target_parsed":{"raw":"≤ 1 hour","direction":"lower_better","value":1.0},"levels":{"l1":"≤ 1 hour","l2":"> 1-2 hours","l3":"> 2-3 hours","l4":"> 3 hours"}},"gap":{"status":"on_target","gap":0.47,"latest":0.53,"target":1.0},"cls":"جودة الخدمات الصحية"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"OR Utilization","sub":"MCH","v":{"2026-01":0.7538,"2026-02":0.6669,"2026-03":0.7213},"bm":{"source":"BENCH","kpi_id":"QFR-20","target_text":"> 75%","target_parsed":{"raw":"> 75%","direction":"higher_better","value":0.75},"levels":{"l1":"> 75%","l2":"62.5-75%","l3":"50-62.49%","l4":"< 50%"}},"gap":{"status":"near_target","gap":-0.028699999999999948,"latest":0.7213,"target":0.75},"cls":"العمليات والكفاءة التشغيلية"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"Surgery Cancellation Rate","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.004},"bm":{"source":"BENCH","kpi_id":"QFR-22","target_text":"< 5%","target_parsed":{"raw":"< 5%","direction":"lower_better","value":0.05},"levels":{"l1":"< 5%","l2":"5-7.49%","l3":"7.5-10%","l4":"> 10%"}},"gap":{"status":"on_target","gap":0.046,"latest":0.004,"target":0.05},"cls":"العمليات والكفاءة التشغيلية"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"% Hospital readmission rate for the same diagnosis within 30 days","sub":"MCH","v":{"2026-01":0.0136,"2026-02":0.0159,"2026-03":0.0097},"bm":{"source":"BENCH","kpi_id":"QFR-47","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0097},"cls":"سلامة المرضى"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"In-Hospital Mortality Rate","sub":"MCH","v":{"2026-01":0.0008,"2026-02":0.0009,"2026-03":0.0007},"bm":{"source":"BENCH","kpi_id":"QFR-42","target_text":"< 5%","target_parsed":{"raw":"< 5%","direction":"lower_better","value":0.05},"levels":{"l1":"< 5%","l2":"5-7.49%","l3":"7.5-10%","l4":"> 10%"}},"gap":{"status":"on_target","gap":0.049300000000000004,"latest":0.0007,"target":0.05},"cls":"سلامة المرضى"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"Maternal Mortality Ratio","sub":"MCH","v":{"2026-01":"0/100000","2026-02":"0/100000","2026-03":"0/100000"},"bm":{"source":"BENCH","kpi_id":"QFR-43","target_text":"%50 reduction from baseline (not \nexceeding national level of 13)","target_parsed":{"raw":"%50 reduction from baseline (not \nexceeding national level of 13)","direction":null,"value":0.5},"levels":{"l1":"≤ target","l2":"1-25% increase from target","l3":"25.1-50% increase from target","l4":"> 50% increase from target"}},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"سلامة المرضى"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"Perioperative Mortality Rate","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-45","target_text":"Variation from per baseline","target_parsed":{"raw":"Variation from per baseline","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"سلامة المرضى"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"Pressure Ulcer Incidence","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-37","target_text":"≤ 3.9%","target_parsed":{"raw":"≤ 3.9%","direction":"lower_better","value":0.039},"levels":{"l1":"≤ 3.9%","l2":"4-4.9%","l3":"5-6%","l4":"> 6%"}},"gap":{"status":"on_target","gap":0.039,"latest":0.0,"target":0.039},"cls":"سلامة المرضى"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"CLABSI Rate (Neonate)","sub":"MCH","v":{"2026-03":1.408450704},"bm":{"source":"BENCH","kpi_id":"QFR-34","target_text":"≤ 1.85/1000 CL days","target_parsed":{"raw":"≤ 1.85/1000 CL days","direction":"lower_better","value":1.85},"levels":{"l1":"≤ 1.85/1000 CL days","l2":"> 1.85 –3.7 /1000 CLdays","l3":"> 3.7 –5.5 /1000 UC days","l4":"> 5.5 /1000 CL days"}},"gap":{"status":"on_target","gap":0.44154929600000004,"latest":1.408450704,"target":1.85},"cls":"سلامة المرضى"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"VAE Rate (NICU)","sub":"MCH","v":{"2026-03":"0/649=0"},"bm":{"source":"BENCH","kpi_id":"QFR-44","target_text":"< 5 /1000live births","target_parsed":{"raw":"< 5 /1000live births","direction":"lower_better","value":0.05},"levels":{"l1":"< 5 /1000live births","l2":"5-5.5 /1000live births","l3":"5.6-6 /1000live births","l4":"> 6/1000 live births"}},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"سلامة المرضى"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"Hospital Outbreak","sub":"MCH","v":{"2026-01":0.0,"2026-02":"1C","2026-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-36","target_text":"No Outbreaks or Outbreaks under","target_parsed":{"raw":"No Outbreaks or Outbreaks under","direction":null,"value":null},"levels":{"l1":"No Outbreaks or Outbreaks under","l2":"No Outbreaks or Outbreaks under control","l3":"Outbreaks that require support","l4":"Outbreaks led to department closed or bed capacity reduced"}},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"سلامة المرضى"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"Number of Reported Sentinel Events","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-51","target_text":"Variation from per baseline","target_parsed":{"raw":"Variation from per baseline","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":1.0},"cls":"سلامة المرضى"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"% Mortality Review","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-52","target_text":"≥ 90%","target_parsed":{"raw":"≥ 90%","direction":"higher_better","value":0.9},"levels":{"l1":"≥ 90%","l2":"70-89.9%","l3":"45-69.9%","l4":"< 45%"}},"gap":{"status":"far_below","gap":-0.9,"latest":0.0,"target":0.9},"cls":"سلامة المرضى"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"% Patient Experience Score for Emergency Services","sub":"MCH","v":{"2026-03":0.927},"bm":{"source":"BENCH","kpi_id":"QFR-60","target_text":"79.05% (Q4 2025)","target_parsed":{"raw":"79.05% (Q4 2025)","direction":null,"value":0.7905},"levels":{"l1":"≥ Target","l2":"5 –10 % < target","l3":"11 –25 % < target","l4":"< 25 % of target"}},"gap":{"status":"unknown","gap":null,"latest":0.927},"cls":"جودة الخدمات الصحية"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"% Patient Experience Score for Outpatient Services","sub":"MCH","v":{"2026-03":0.9478},"bm":{"source":"BENCH","kpi_id":"QFR-60","target_text":"79.05% (Q4 2025)","target_parsed":{"raw":"79.05% (Q4 2025)","direction":null,"value":0.7905},"levels":{"l1":"≥ Target","l2":"5 –10 % < target","l3":"11 –25 % < target","l4":"< 25 % of target"}},"gap":{"status":"unknown","gap":null,"latest":0.9478},"cls":"جودة الخدمات الصحية"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"% Patient Experience Score for Inpatient Services","sub":"MCH","v":{"2026-03":0.9659},"bm":{"source":"BENCH","kpi_id":"QFR-62","target_text":"88.95% (Q4 2025)","target_parsed":{"raw":"88.95% (Q4 2025)","direction":null,"value":0.8895000000000001},"levels":{"l1":"≥ Target","l2":"6 –10 % < target","l3":"12 –25 % < target","l4":"< 25 % of target"}},"gap":{"status":"unknown","gap":null,"latest":0.9659},"cls":"جودة الخدمات الصحية"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"% DAMA and LAMA","sub":"MCH","v":{"2026-01":0.014,"2026-02":0.0228,"2026-03":0.0298},"bm":{"source":"BENCH","kpi_id":"QFR-24","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0298},"cls":"أخرى / مؤشرات عامة"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"% Staff Satisfaction","sub":"MCH","v":{"2026-03":0.77},"bm":{"source":"BENCH","kpi_id":"QFR-59","target_text":"≥ 85%","target_parsed":{"raw":"≥ 85%","direction":"higher_better","value":0.85},"levels":{"l1":"≥ 85%","l2":"75 –84.9%","l3":"65 –74.9%","l4":"< 65%"}},"gap":{"status":"below_target","gap":-0.07999999999999996,"latest":0.77,"target":0.85},"cls":"جودة الخدمات الصحية"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"Nurse to bed ratio","sub":"MCH","v":{"2026-01":2.1,"2026-02":1.3,"2026-03":1.4},"bm":{"source":"BENCH","kpi_id":"QFR-54","target_text":"1:(recommended # based on unit)","target_parsed":{"raw":"1:(recommended # based on unit)","direction":null,"value":1.0},"levels":{"l1":"1:(recommended # based on unit)","l2":"1:(recommended # based on unit)+1","l3":"1:(recommended # based on unit)+2","l4":"1:(recommended # based on unit)+3"}},"gap":{"status":"unknown","gap":null,"latest":1.4},"cls":"القوى العاملة والكوادر"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"Overall Hospital's Nurse: Beds ratio – (Nurse to bed ratio)","sub":"MCH","v":{"2026-01":2.1,"2026-02":1.3,"2026-03":1.4},"bm":{"source":"BENCH","kpi_id":"QFR-55","target_text":"< 1:6","target_parsed":{"raw":"< 1:6","direction":"lower_better","value":1.0},"levels":{"l1":"< 1:6","l2":"01:06:00","l3":"1:7 -1:8","l4":"1:9 or more"}},"gap":{"status":"far_above","gap":-0.3999999999999999,"latest":1.4,"target":1.0},"cls":"القوى العاملة والكوادر"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"Physician to patient ratio","sub":"MCH","v":{"2026-01":0.022,"2026-02":0.012,"2026-03":0.012},"bm":{"source":"BENCH","kpi_id":"QFR-56","target_text":"Variation from per baseline","target_parsed":{"raw":"Variation from per baseline","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.012},"cls":"القوى العاملة والكوادر"},{"s":"QFR","cat":"Patient Flow & Access","id":"","k":"Therapist patient ratio – ( Therapist FTE to patient ratio)","sub":"MCH","v":{"2026-01":0.027,"2026-02":0.028,"2026-03":0.036},"bm":{"source":"BENCH","kpi_id":"QFR-56","target_text":"Variation from per baseline","target_parsed":{"raw":"Variation from per baseline","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.036},"cls":"القوى العاملة والكوادر"},{"s":"OR","cat":"Operating Room","id":"","k":"KPI 1: % OR Utilization","sub":"MCH","v":{"2026-01":0.753,"2026-02":0.6669,"2026-03":0.7213},"bm":{"source":"BENCH","kpi_id":"QFR-20","target_text":"> 75%","target_parsed":{"raw":"> 75%","direction":"higher_better","value":0.75},"levels":{"l1":"> 75%","l2":"62.5-75%","l3":"50-62.49%","l4":"< 50%"}},"gap":{"status":"near_target","gap":-0.028699999999999948,"latest":0.7213,"target":0.75},"cls":"العمليات والكفاءة التشغيلية"},{"s":"OR","cat":"Operating Room","id":"","k":"KPI 2: % Surgical Cancellation Rate","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.004},"bm":{"source":"BENCH","kpi_id":"QFR-22","target_text":"< 5%","target_parsed":{"raw":"< 5%","direction":"lower_better","value":0.05},"levels":{"l1":"< 5%","l2":"5-7.49%","l3":"7.5-10%","l4":"> 10%"}},"gap":{"status":"on_target","gap":0.046,"latest":0.004,"target":0.05},"cls":"العمليات والكفاءة التشغيلية"},{"s":"OR","cat":"Operating Room","id":"","k":"KPI 3: % Elective Surgeries from total surgeries","sub":"MCH","v":{"2026-01":0.69,"2026-02":0.64,"2026-03":0.64},"bm":{"source":"Benchmark","target_text":"","target_parsed":null,"levels":{"l1":"","l2":"","l3":"","l4":""},"definition":"Numerator: Total number of Elective Cases\nDenominator: Total number of Elective & Emergency Case\nCalculation = [Numerator / Denominator]  x  100\nInclusions: All elective and emergency surgeries"},"gap":{"status":"unknown","gap":null,"latest":0.64},"cls":"العمليات والكفاءة التشغيلية"},{"s":"OR","cat":"Operating Room","id":"","k":"KPI 4: Day of admission to day of surgery","sub":"MCH","v":{"2026-01":1.0,"2026-02":1.0,"2026-03":0.3},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.3},"cls":"العمليات والكفاءة التشغيلية"},{"s":"OR","cat":"Operating Room","id":"","k":"KPI 5: Waiting time of elective surgery","sub":"MCH","v":{"2026-01":13.25,"2026-02":12.81,"2026-03":16.75},"bm":{"source":"Benchmark","target_text":"","target_parsed":null,"levels":{"l1":"","l2":"<36","l3":"36-59","l4":"More than 59"},"definition":"Elective surgery includes elective One Day Surgery\nElective surgery: is a term used for non-emergency surgery which is medically necessary. Patients requiring emergency surgery will not be placed on the elective surgery list. Surgery requires Surgeon, Anesthesia, & OR .\nThe Snapshot capture date: at which date you are calculating the second available appointment. Preferably every Thursday of the week\nThe second next available appointment: The second empty slot for the specialty in the OR.\nVolume of waiting list : Number of patients waiting to be operated either scheduled or not scheduled yet (any number or ND \"No Demand: There is no patients waiting for surgery\")\nVolume of New Patients: Number of patients who attended the surgical clinics and added to the list weather scheduled or not scheduled yet (any number or ND \"No Demand\", Please donnot type Zero (0))\nVolume of patients with booked surgeries within the next 36 days: Number of patients who are scheduled within the next 36 days (any number or ND \"No Demand\" if Volume of waiting list is ND, Please put 0 if no surgery is scheduled)\nNumber of non scheduled cases due to shortage of supply: Number of patients who could not be scheduled due to shortage of supply (any number or ND \"No Demand\" if Volume of waiting list is ND, Please put 0 if no surgery could not be scheduled)\nNumber of sessions: number of blocks dedicated for the specialty every week regardless number of cases.\nDuration of the session: The period in hours per specialty. (1, 2, 3, 4, 5, 6, 7, 8) hours\nTotal of Elective surgeries performed during the week (Non one day surgeries): Number of patients operated during the week.\nTotal of One day surgeries performed during the week (According to the MOH list): Number of patients operated during the week.\nSpecialty available? : Are all the requirements available to perform surgery? \nOn Hold: This type of surgeries could not be performed this week due to unavailability of the surgeon, the OR, required equipment... etc. \nAvailable: availability of all requirements to perform surgery.\nN/A: This type of surgery is not in the hospital’s scope."},"gap":{"status":"unknown","gap":null,"latest":16.75},"cls":"جودة الخدمات الصحية"},{"s":"OR","cat":"Operating Room","id":"","k":"KPI 6.1: % Total day surgery","sub":"MCH","v":{"2026-01":0.26,"2026-02":0.31,"2026-03":0.26},"bm":{"source":"Benchmark","target_text":"","target_parsed":null,"levels":{"l1":"","l2":"More than 75%","l3":"75%-50%","l4":"Less than 50%"},"definition":"Numerator: Total number of day surgeries\nDenominator: The sum of elective surgeries\nCalculation = [Numerator / Denominator]  x  100\nThe list of Surgeries includes the following:\nANAL SURGERY, ARTHROSCOPY, CATARACT, CHOLECYSTECTOMY, EXCISSION OF BENIGN BREAST LUMP, HERNIA, ORCHIDOPEXY, SEPTOPLASTY, SQUINT, TONSILLECTOMY & ADENOIDECTOMY \nAny other surgeries must coded as OTHER"},"gap":{"status":"unknown","gap":null,"latest":0.26},"cls":"أخرى / مؤشرات عامة"},{"s":"OR","cat":"Operating Room","id":"","k":"KPI 6.2: Unplanned admission following discharge","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"العمليات والكفاءة التشغيلية"},{"s":"OR","cat":"Operating Room","id":"","k":"KPI 6.3: Day surgery cancellation rate","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-22","target_text":"< 5%","target_parsed":{"raw":"< 5%","direction":"lower_better","value":0.05},"levels":{"l1":"< 5%","l2":"5-7.49%","l3":"7.5-10%","l4":"> 10%"}},"gap":{"status":"on_target","gap":0.05,"latest":0.0,"target":0.05},"cls":"العمليات والكفاءة التشغيلية"},{"s":"OR","cat":"Operating Room","id":"","k":"KPI 6.4: Day surgery convertion to admission","sub":"MCH","v":{"2026-01":0.13,"2026-02":0.12,"2026-03":0.01},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.01},"cls":"العمليات والكفاءة التشغيلية"},{"s":"OR","cat":"Operating Room","id":"","k":"Total Emergency Surgeries","sub":"MCH","v":{"2026-01":117.0,"2026-02":127.0,"2026-03":154.0},"bm":{"source":"BENCH","kpi_id":"QFR-5","target_text":"≥ 90%","target_parsed":{"raw":"≥ 90%","direction":"higher_better","value":0.9},"levels":{"l1":"≥ 90%","l2":"80-89.9%","l3":"70-79.9%","l4":"< 70%"}},"gap":{"status":"on_target","gap":153.1,"latest":154.0,"target":0.9},"cls":"أخرى / مؤشرات عامة"},{"s":"OR","cat":"Operating Room","id":"","k":"Total number of Elective surgeries","sub":"MCH","v":{"2026-01":250.0,"2026-02":213.0,"2026-03":250.0},"bm":{"source":"Benchmark","target_text":"","target_parsed":null,"levels":{"l1":"","l2":"","l3":"","l4":""},"definition":"Numerator: Total number of Elective Cases\nDenominator: Total number of Elective & Emergency Case\nCalculation = [Numerator / Denominator]  x  100\nInclusions: All elective and emergency surgeries"},"gap":{"status":"unknown","gap":null,"latest":250.0},"cls":"العمليات والكفاءة التشغيلية"},{"s":"OR","cat":"Operating Room","id":"","k":"% of Elective surgeries from MOH target","sub":"MCH","v":{"2026-01":1.008064516,"2026-02":0.8588709677,"2026-03":0.8064516129},"bm":{"source":"Benchmark","target_text":"","target_parsed":null,"levels":{"l1":"","l2":"","l3":"","l4":""},"definition":"Numerator: Total number of Elective Cases\nDenominator: Total number of Elective & Emergency Case\nCalculation = [Numerator / Denominator]  x  100\nInclusions: All elective and emergency surgeries"},"gap":{"status":"unknown","gap":null,"latest":0.8064516129},"cls":"العمليات والكفاءة التشغيلية"},{"s":"OR","cat":"Operating Room","id":"","k":"Total waiting patients list","sub":"MCH","v":{"2026-01":58.0,"2026-02":59.0,"2026-03":71.0},"bm":null,"gap":{"status":"unknown","gap":null,"latest":71.0},"cls":"جودة الخدمات الصحية"},{"s":"OR","cat":"Operating Room","id":"","k":"% Patients who are waiting for elective surgery within  36 days","sub":"MCH","v":{"2026-01":1.0,"2026-02":1.0,"2026-03":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-17","target_text":"≥ 85%","target_parsed":{"raw":"≥ 85%","direction":"higher_better","value":0.85},"levels":{"l1":"≥ 85%","l2":"65-84.9%","l3":"50-64.9%","l4":"< 50%"}},"gap":{"status":"on_target","gap":0.15000000000000002,"latest":1.0,"target":0.85},"cls":"جودة الخدمات الصحية"},{"s":"OR","cat":"Operating Room","id":"","k":"Pediatric Dentistry","sub":"MCH","v":{"2026-01":8.0,"2026-02":0.38,"2026-03":7.0,"2026-04":0.33},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.33},"cls":"أخرى / مؤشرات عامة"},{"s":"OR","cat":"Operating Room","id":"","k":"Obstetrics & Gynecology","sub":"MCH","v":{"2026-01":204.0,"2026-02":1.21,"2026-03":164.0,"2026-04":0.95},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.95},"cls":"أخرى / مؤشرات عامة"},{"s":"OR","cat":"Operating Room","id":"","k":"Pediatric Surgery","sub":"MCH","v":{"2026-01":15.0,"2026-02":0.61,"2026-03":11.0,"2026-04":0.18},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.18},"cls":"أخرى / مؤشرات عامة"},{"s":"OR","cat":"Operating Room","id":"","k":"Orthopedics Surgery","sub":"MCH","v":{"2026-01":23.0,"2026-02":0.2,"2026-03":31.0,"2026-04":0.33},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.33},"cls":"أخرى / مؤشرات عامة"},{"s":"ED","cat":"Emergency Department","id":"","k":"Door to doctor time (Minute)","sub":"MCH","v":{"2026-01":17.0,"2026-02":14.0,"2026-03":14.0,"2026-04":14.0,"2026-05":14.0,"2026-06":14.0,"2026-07":14.0,"2026-08":14.0,"2026-09":14.0,"2026-10":14.0,"2026-11":14.0,"2026-12":14.0,"2027-01":14.0},"bm":{"source":"BENCH","kpi_id":"QFR-38","target_text":"≥ 80%","target_parsed":{"raw":"≥ 80%","direction":"higher_better","value":0.8},"levels":{"l1":"≥ 80%","l2":"72.5-79.9%","l3":"64.9-72.49%","l4":"≤ 65%"}},"gap":{"status":"on_target","gap":13.2,"latest":14.0,"target":0.8},"cls":"جودة الخدمات الصحية"},{"s":"ED","cat":"Emergency Department","id":"","k":"Doctor to decision time (Minute)","sub":"MCH","v":{"2026-01":42.0,"2026-02":25.0,"2026-03":25.0,"2026-04":25.0,"2026-05":25.0,"2026-06":25.0,"2026-07":25.0,"2026-08":25.0,"2026-09":25.0,"2026-10":25.0,"2026-11":25.0,"2026-12":25.0,"2027-01":25.0},"bm":{"source":"Benchmark","target_text":"Less than 30 mins","target_parsed":{"raw":"Less than 30 mins","direction":"lower_better","value":30.0},"levels":{"l1":"Less than 30 mins","l2":"30-60 mins","l3":"60-90 mins","l4":"More than 90 mins"},"definition":"Starting point: time seen by physician\nEnding Point: time of decision (to admit, or discharge)\nCalculation = [Ending point] – [Starting point]"},"gap":{"status":"on_target","gap":5.0,"latest":25.0,"target":30.0},"cls":"أخرى / مؤشرات عامة"},{"s":"ED","cat":"Emergency Department","id":"","k":"Decision to disposition time (Minute)","sub":"MCH","v":{"2026-01":33.0,"2026-02":26.0,"2026-03":26.0,"2026-04":26.0,"2026-05":26.0,"2026-06":26.0,"2026-07":26.0,"2026-08":26.0,"2026-09":26.0,"2026-10":26.0,"2026-11":26.0,"2026-12":26.0,"2027-01":26.0},"bm":{"source":"Benchmark","target_text":"Less than 30 mins","target_parsed":{"raw":"Less than 30 mins","direction":"lower_better","value":30.0},"levels":{"l1":"Less than 30 mins","l2":"30-90 mins","l3":"90-130 mins","l4":"More than 130 mins"},"definition":"Starting Point = time of decision\nEnding point = time of patient physical disposition from ED\nCalculation = [Ending point] – [Starting point]"},"gap":{"status":"on_target","gap":4.0,"latest":26.0,"target":30.0},"cls":"العمليات والكفاءة التشغيلية"},{"s":"ED","cat":"Emergency Department","id":"","k":"% Total Patients treated within 4 hours","sub":"MCH","v":{"2026-01":0.9312,"2026-02":0.97,"2026-03":0.97,"2026-04":0.97,"2026-05":0.97,"2026-06":0.97,"2026-07":0.97,"2026-08":0.97,"2026-09":0.97,"2026-10":0.97,"2026-11":0.97,"2026-12":0.97,"2027-01":0.97},"bm":{"source":"BENCH","kpi_id":"QFR-15","target_text":"≥ 75%","target_parsed":{"raw":"≥ 75%","direction":"higher_better","value":0.75},"levels":{"l1":"≥ 75%","l2":"67-74.9%","l3":"60-66.9%","l4":"<60%"}},"gap":{"status":"on_target","gap":0.21999999999999997,"latest":0.97,"target":0.75},"cls":"أخرى / مؤشرات عامة"},{"s":"ED","cat":"Emergency Department","id":"","k":"Total Patients treated between 4 hours and 24 hours","sub":"MCH","v":{"2026-01":0.1,"2026-02":0.03,"2026-03":0.03,"2026-04":0.03,"2026-05":0.03,"2026-06":0.03,"2026-07":0.03,"2026-08":0.03,"2026-09":0.03,"2026-10":0.03,"2026-11":0.03,"2026-12":0.03,"2027-01":0.03},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.03},"cls":"أخرى / مؤشرات عامة"},{"s":"ED","cat":"Emergency Department","id":"","k":"Total Patients treated within >24 hours","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-15","target_text":"≥ 75%","target_parsed":{"raw":"≥ 75%","direction":"higher_better","value":0.75},"levels":{"l1":"≥ 75%","l2":"67-74.9%","l3":"60-66.9%","l4":"<60%"}},"gap":{"status":"far_below","gap":-0.75,"latest":0.0,"target":0.75},"cls":"أخرى / مؤشرات عامة"},{"s":"ED","cat":"Emergency Department","id":"","k":"Total patients with AICU & PICU & NICU admission","sub":"MCH","v":{"2026-01":163.0,"2026-02":40.0,"2026-03":40.0,"2026-04":40.0,"2026-05":40.0,"2026-06":40.0,"2026-07":40.0,"2026-08":40.0,"2026-09":40.0,"2026-10":40.0,"2026-11":40.0,"2026-12":40.0,"2027-01":40.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":40.0},"cls":"العمليات والكفاءة التشغيلية"},{"s":"ED","cat":"Emergency Department","id":"","k":"Total  patients with Ward admission","sub":"MCH","v":{"2026-01":1323.0,"2026-02":1286.0,"2026-03":1286.0,"2026-04":1286.0,"2026-05":1286.0,"2026-06":1286.0,"2026-07":1286.0,"2026-08":1286.0,"2026-09":1286.0,"2026-10":1286.0,"2026-11":1286.0,"2026-12":1286.0,"2027-01":1286.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":1286.0},"cls":"العمليات والكفاءة التشغيلية"},{"s":"ED","cat":"Emergency Department","id":"","k":"Total admissions within 4 hours","sub":"MCH","v":{"2026-01":0.9388,"2026-02":0.8914,"2026-03":0.8914,"2026-04":0.8914,"2026-05":0.8914,"2026-06":0.8914,"2026-07":0.8914,"2026-08":0.8914,"2026-09":0.8914,"2026-10":0.8914,"2026-11":0.8914,"2026-12":0.8914,"2027-01":0.8914},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.8914},"cls":"العمليات والكفاءة التشغيلية"},{"s":"ED","cat":"Emergency Department","id":"","k":"Total admissions > 4 hours","sub":"MCH","v":{"2026-01":0.0612,"2026-02":0.1086,"2026-03":0.1086,"2026-04":0.1086,"2026-05":0.1086,"2026-06":0.1086,"2026-07":0.1086,"2026-08":0.1086,"2026-09":0.1086,"2026-10":0.1086,"2026-11":0.1086,"2026-12":0.1086,"2027-01":0.1086},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.1086},"cls":"العمليات والكفاءة التشغيلية"},{"s":"ED","cat":"Emergency Department","id":"","k":"Total patients referred to UCC","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"أخرى / مؤشرات عامة"},{"s":"ED","cat":"Emergency Department","id":"","k":"","sub":"MCH","v":{"2026-01":81.0,"2026-02":61.0,"2026-03":61.0,"2026-04":61.0,"2026-05":61.0,"2026-06":61.0,"2026-07":61.0,"2026-08":61.0,"2026-09":61.0,"2026-10":61.0,"2026-11":61.0,"2026-12":61.0,"2027-01":61.0},"bm":null,"gap":{"status":"unknown","gap":null,"latest":61.0},"cls":"أخرى / مؤشرات عامة"},{"s":"ED","cat":"Emergency Department","id":"","k":"","sub":"MCH","v":{"2026-01":0.0163,"2026-02":0.013,"2026-03":0.013,"2026-04":0.013,"2026-05":0.013,"2026-06":0.013,"2026-07":0.013,"2026-08":0.013,"2026-09":0.013,"2026-10":0.013,"2026-11":0.013,"2026-12":0.013,"2027-01":0.013},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.013},"cls":"أخرى / مؤشرات عامة"},{"s":"LAB","cat":"Laboratory","id":"","k":"KPI 1: Percentage corrected laboratory reports","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0},"bm":{"source":"Benchmark","target_text":"<1%","target_parsed":{"raw":"<1%","direction":"lower_better","value":1.0},"levels":{"l1":"<1%","l2":"> 1 %  to <= 1.5 %","l3":"> 1.5 %  to <= 2 %","l4":"> 2 %"},"definition":"This indicator measures the percentage of corrected laboratory reports  and it is used to determine the causes of correction so that preventative actions can reduce the release of incorrect reports. \nNumerator: Number of corrected results after initial release\nDenominator: Total Number of Patient Reports\nCalculation = [Numerator] / [Denominator]"},"gap":{"status":"on_target","gap":1.0,"latest":0.0,"target":1.0},"cls":"أخرى / مؤشرات عامة"},{"s":"LAB","cat":"Laboratory","id":"","k":"KPI 3: Percentage of Rejected Samples","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0},"bm":{"source":"Benchmark","target_text":"< 1%","target_parsed":{"raw":"< 1%","direction":"lower_better","value":1.0},"levels":{"l1":"< 1%","l2":">= 1% to < 2.5%","l3":">= 2.5% to < 5%","l4":">= 5%"},"definition":"This indicator measures the number of rejected samples by hematology and chemistry laboratories because it does not meet laboratory criteria since it has consequences on patients and their clinical management resulting repeat sample collection, inconvenience to the patient and may impact bed management especially in ED.  \nNumerator: Number of Rejected Samples\nDenominator: Total number of samples received in the labs\nCalculation = [Numerator] / [Denominator]"},"gap":{"status":"on_target","gap":1.0,"latest":0.0,"target":1.0},"cls":"سلامة المرضى"},{"s":"LAB","cat":"Laboratory","id":"","k":"KPI 4: Percentage of ED samples processed within 60 minutes (journey)","sub":"MCH","v":{"2026-01":1.0,"2026-02":1.0,"2026-03":1.0,"2026-04":1.0,"2026-05":1.0,"2026-06":1.0,"2026-07":1.0,"2026-08":1.0,"2026-09":1.0,"2026-10":1.0,"2026-11":1.0,"2026-12":1.0,"2027-01":1.0},"bm":{"source":"Benchmark","target_text":"≥ 95 %","target_parsed":{"raw":"≥ 95 %","direction":"higher_better","value":0.95},"levels":{"l1":"≥ 95 %","l2":"≥ 90 %","l3":"≥ 85 % to ≤ 90 %","l4":"< 85 %"},"definition":"This indicator measures the efficiency of hospital staff in processing Emergency Department (ED) requests—whether STAT or routine—within 60 minutes. It tracks the process from when the order is placed by the requesting physician to when the results are released by the laboratory staff.\nNumerator: \nNumber of ED Samples Processed within 60 Minutes is the count of ED samples that were processed and results released within the 60-minute time frame.\nDenominator:\nTotal Number of ED Samples Received and Accepted is the total count of ED samples that were received and accepted by the laboratory for processing.\nCalculation = [Numerator] / [Denominator] * 100"},"gap":{"status":"on_target","gap":0.050000000000000044,"latest":1.0,"target":0.95},"cls":"أخرى / مؤشرات عامة"},{"s":"LAB","cat":"Laboratory","id":"","k":"KPI 5: Percentage of routine results reported within 4 hours","sub":"MCH","v":{"2026-01":1.0,"2026-02":1.0,"2026-03":1.0,"2026-04":1.0,"2026-05":1.0,"2026-06":1.0,"2026-07":1.0,"2026-08":1.0,"2026-09":1.0,"2026-10":1.0,"2026-11":1.0,"2026-12":1.0,"2027-01":1.0},"bm":{"source":"Benchmark","target_text":"≥ 95 %","target_parsed":{"raw":"≥ 95 %","direction":"higher_better","value":0.95},"levels":{"l1":"≥ 95 %","l2":"≥ 90 %","l3":"≥ 90 % to ≤ 85 %","l4":"< 85 %"},"definition":"This indicator measures the efficiency of laboratory to release routine results within 4 hours since time of sample collection. \nNumerator: Number of routine results reported within 4 hours since time of sample collection.\nDenominator: Total number of routine requests received.\nCalculation = [Numerator] / [Denominator]"},"gap":{"status":"on_target","gap":0.050000000000000044,"latest":1.0,"target":0.95},"cls":"أخرى / مؤشرات عامة"},{"s":"BB","cat":"Blood Bank","id":"","k":"KPI 1: Crossmatched / Transfused Ratio","sub":"MCH","v":{"2026-01":1.28,"2026-02":1.36,"2026-03":1.36,"2026-04":1.36,"2026-05":1.36,"2026-06":1.36,"2026-07":1.36,"2026-08":1.36,"2026-09":1.36,"2026-10":1.36,"2026-11":1.36,"2026-12":1.36,"2027-01":1.36},"bm":null,"gap":{"status":"unknown","gap":null,"latest":1.36},"cls":"العمليات والكفاءة التشغيلية"},{"s":"BB","cat":"Blood Bank","id":"","k":"KPI 2: Percentage of expired PRBC units in blood bank","sub":"MCH","v":{"2026-01":0.01,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0},"bm":{"source":"Benchmark","target_text":"< 5 %","target_parsed":{"raw":"< 5 %","direction":"lower_better","value":0.05},"levels":{"l1":"< 5 %","l2":"< 7%","l3":"7% - 9%","l4":"> 9%"},"definition":"Numerator: Number of discarded units \nDenominator: Total number of units received and/or processed during the week\nCalculation = ([Numerator] / [Denominator]) * 100\n1.Inappropriate blood collection & processing (Over volume / Low volume, hemolysis, clotted, lipemia, discoloration, leakage and RBCs contamination of FFB & PLT) \n2.Inappropriate unit storage (Regreiagtor temperature failure, visual inspection issue (clotted, discoloration) \n3.Inappropriate unit transportation (Not accepted shipment from other blood banks due to inappropiate temperature  or incompliance of transportation standards of blood component units)"},"gap":{"status":"on_target","gap":0.05,"latest":0.0,"target":0.05},"cls":"سلامة المرضى"},{"s":"BB","cat":"Blood Bank","id":"","k":"KPI 3: Percentage of female blood donor","sub":"MCH","v":{"2026-01":0.01,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0},"bm":{"source":"Benchmark","target_text":"≥15 %","target_parsed":{"raw":"≥15 %","direction":"higher_better","value":0.15},"levels":{"l1":"≥15 %","l2":"<15%  to ≥10%","l3":"<10%  to ≥ 5%","l4":"<5%"},"definition":"Numerator: Number of  female blood donors\nDenominator: Total number of donors \nCalculation = ([Numerator] / [Denominator]) * 100"},"gap":{"status":"below_target","gap":-0.15,"latest":0.0,"target":0.15},"cls":"العمليات والكفاءة التشغيلية"},{"s":"BB","cat":"Blood Bank","id":"","k":"KPI 4: Percentage of adverse donor events","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0},"bm":{"source":"Benchmark","target_text":"≤ 2.5 %","target_parsed":{"raw":"≤ 2.5 %","direction":"lower_better","value":0.025},"levels":{"l1":"≤ 2.5 %","l2":"> 2.5 % to ≤ 3.5%","l3":"> 3.5 % to ≤ 4.5%","l4":"> 4.5 %"},"definition":"Numerator: Number of adverse blood donor events\nDenominator: Total number of donors  \nCalculation = ([Numerator] / [Denominator])*100"},"gap":{"status":"on_target","gap":0.025,"latest":0.0,"target":0.025},"cls":"سلامة المرضى"},{"s":"BB","cat":"Blood Bank","id":"","k":"KPI 4: Percentage of adverse donor events","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0},"bm":{"source":"Benchmark","target_text":"≤ 2.5 %","target_parsed":{"raw":"≤ 2.5 %","direction":"lower_better","value":0.025},"levels":{"l1":"≤ 2.5 %","l2":"> 2.5 % to ≤ 3.5%","l3":"> 3.5 % to ≤ 4.5%","l4":"> 4.5 %"},"definition":"Numerator: Number of adverse blood donor events\nDenominator: Total number of donors  \nCalculation = ([Numerator] / [Denominator])*100"},"gap":{"status":"on_target","gap":0.025,"latest":0.0,"target":0.025},"cls":"سلامة المرضى"},{"s":"BB","cat":"Blood Bank","id":"","k":"KPI 5: Percentage of volunteer blood donors","sub":"MCH","v":{"2026-01":0.98,"2026-02":0.98,"2026-03":0.98,"2026-04":0.98,"2026-05":0.98,"2026-06":0.98,"2026-07":0.98,"2026-08":0.98,"2026-09":0.98,"2026-10":0.98,"2026-11":0.98,"2026-12":0.98,"2027-01":0.98},"bm":{"source":"Benchmark","target_text":"> 80 %","target_parsed":{"raw":"> 80 %","direction":"higher_better","value":0.8},"levels":{"l1":"> 80 %","l2":"≤80% to  ≥70%","l3":"< 70 % to  ≥ 65%","l4":"< 65%"},"definition":"Numerator: Number of Volunteer Blood Donors \nDenominator: Total number of Donors\nCalculation = ([Numerator] / [Denominator]) * 100"},"gap":{"status":"on_target","gap":0.17999999999999994,"latest":0.98,"target":0.8},"cls":"العمليات والكفاءة التشغيلية"},{"s":"BB","cat":"Blood Bank","id":"","k":"KPI 6: Discarded Blood Units","sub":"MCH","v":{"2026-01":0.08,"2026-02":0.05,"2026-03":0.05,"2026-04":0.05,"2026-05":0.05,"2026-06":0.05,"2026-07":0.05,"2026-08":0.05,"2026-09":0.05,"2026-10":0.05,"2026-11":0.05,"2026-12":0.05,"2027-01":0.05},"bm":{"source":"Benchmark","target_text":"< 5 %","target_parsed":{"raw":"< 5 %","direction":"lower_better","value":0.05},"levels":{"l1":"< 5 %","l2":"< 7%","l3":"7% - 9%","l4":"> 9%"},"definition":"Numerator: Number of discarded units \nDenominator: Total number of units received and/or processed during the week\nCalculation = ([Numerator] / [Denominator]) * 100\n1.Inappropriate blood collection & processing (Over volume / Low volume, hemolysis, clotted, lipemia, discoloration, leakage and RBCs contamination of FFB & PLT) \n2.Inappropriate unit storage (Regreiagtor temperature failure, visual inspection issue (clotted, discoloration) \n3.Inappropriate unit transportation (Not accepted shipment from other blood banks due to inappropiate temperature  or incompliance of transportation standards of blood component units)"},"gap":{"status":"on_target","gap":0.0,"latest":0.05,"target":0.05},"cls":"سلامة المرضى"},{"s":"HHC","cat":"Home Health Care","id":"","k":"KPI 1: Nurse to Patient Ratio","sub":"MCH","v":{"2026-01":0.037,"2026-02":0.038,"2026-03":0.038,"2026-04":0.038,"2026-05":0.038,"2026-06":0.038,"2026-07":0.038,"2026-08":0.038,"2026-09":0.038,"2026-10":0.038,"2026-11":0.038,"2026-12":0.038,"2027-01":0.038},"bm":{"source":"BENCH","kpi_id":"QFR-54","target_text":"1:(recommended # based on unit)","target_parsed":{"raw":"1:(recommended # based on unit)","direction":null,"value":1.0},"levels":{"l1":"1:(recommended # based on unit)","l2":"1:(recommended # based on unit)+1","l3":"1:(recommended # based on unit)+2","l4":"1:(recommended # based on unit)+3"}},"gap":{"status":"unknown","gap":null,"latest":0.038},"cls":"القوى العاملة والكوادر"},{"s":"HHC","cat":"Home Health Care","id":"","k":"KPI 2: HHC Team to Patient Ratio","sub":"MCH","v":{"2026-01":0.018,"2026-02":0.019,"2026-03":0.019,"2026-04":0.019,"2026-05":0.019,"2026-06":0.019,"2026-07":0.019,"2026-08":0.019,"2026-09":0.019,"2026-10":0.019,"2026-11":0.019,"2026-12":0.019,"2027-01":0.019},"bm":{"source":"BENCH","kpi_id":"QFR-56","target_text":"Variation from per baseline","target_parsed":{"raw":"Variation from per baseline","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.019},"cls":"القوى العاملة والكوادر"},{"s":"HHC","cat":"Home Health Care","id":"","k":"KPI 3: Percentage of patients with first visit within one working week of acceptance in HHC","sub":"MCH","v":{"2026-01":1.0,"2026-02":1.0,"2026-03":1.0,"2026-04":1.0,"2026-05":1.0,"2026-06":1.0,"2026-07":1.0,"2026-08":1.0,"2026-09":1.0,"2026-10":1.0,"2026-11":1.0,"2026-12":1.0,"2027-01":1.0},"bm":{"source":"Benchmark","target_text":"","target_parsed":null,"levels":{"l1":"","l2":"90-100%","l3":"<90% but > 70%","l4":"<= 70%"},"definition":"Numerator :The number of patients visited by HHC within five business days of being accepted at HHC"},"gap":{"status":"unknown","gap":null,"latest":1.0},"cls":"جودة الخدمات الصحية"},{"s":"HHC","cat":"Home Health Care","id":"","k":"KPI 4: No Show Rate","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"جودة الخدمات الصحية"},{"s":"HHC","cat":"Home Health Care","id":"","k":"KPI 5: % of unplanned patients readmitted for the same diagnosis to the hospital within 30 days","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-36","target_text":"No Outbreaks or Outbreaks under","target_parsed":{"raw":"No Outbreaks or Outbreaks under","direction":null,"value":null},"levels":{"l1":"No Outbreaks or Outbreaks under","l2":"No Outbreaks or Outbreaks under control","l3":"Outbreaks that require support","l4":"Outbreaks led to department closed or bed capacity reduced"}},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"سلامة المرضى"},{"s":"HHC","cat":"Home Health Care","id":"","k":"KPI 6: % of pressure ulcers in HHC patients scoring (≤18) according to Braden scale assessment","sub":"MCH","v":{"2026-01":0.0065,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0},"bm":{"source":"Benchmark","target_text":"","target_parsed":null,"levels":{"l1":"","l2":"0% - 5%","l3":">5% - 10%","l4":">10%"},"definition":"Numerator :Total number of patients with pressure injuries (existing and new)"},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"سلامة المرضى"},{"s":"HHC","cat":"Home Health Care","id":"","k":"KPI 7: HHC Patient referral acceptance rate","sub":"MCH","v":{"2026-01":1.0,"2026-02":1.0,"2026-03":1.0,"2026-04":1.0,"2026-05":1.0,"2026-06":1.0,"2026-07":1.0,"2026-08":1.0,"2026-09":1.0,"2026-10":1.0,"2026-11":1.0,"2026-12":1.0,"2027-01":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":1.0},"cls":"أخرى / مؤشرات عامة"},{"s":"HHC","cat":"Home Health Care","id":"","k":"KPI 9: HHC Service Growth Rate","sub":"MCH","v":{"2026-01":1.0,"2026-02":1.0,"2026-03":1.0,"2026-04":1.0,"2026-05":1.0,"2026-06":1.0,"2026-07":1.0,"2026-08":1.0,"2026-09":1.0,"2026-10":1.0,"2026-11":1.0,"2026-12":1.0,"2027-01":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":1.0},"cls":"أخرى / مؤشرات عامة"},{"s":"HHC","cat":"Home Health Care","id":"","k":"KPI 10: % of Daily efficiency of HHC team","sub":"MCH","v":{"2026-01":1.125,"2026-02":0.9458,"2026-03":0.9458,"2026-04":0.9458,"2026-05":0.9458,"2026-06":0.9458,"2026-07":0.9458,"2026-08":0.9458,"2026-09":0.9458,"2026-10":0.9458,"2026-11":0.9458,"2026-12":0.9458,"2027-01":0.9458},"bm":{"source":"Benchmark","target_text":"more than 100%","target_parsed":{"raw":"more than 100%","direction":"higher_better","value":1.0},"levels":{"l1":"more than 100%","l2":"90%to 100%","l3":"70% to 89%","l4":"less than 70%"},"definition":"Numerator :Total number of Team visit/day"},"gap":{"status":"below_target","gap":-0.054200000000000026,"latest":0.9458,"target":1.0},"cls":"أخرى / مؤشرات عامة"},{"s":"HQI","cat":"Healthcare Quality Index","id":"","k":"Overall Score","sub":"MCH","v":{"Q2-25":0.758,"Q3-25":0.826},"bm":null,"gap":{"status":"unknown","gap":null,"latest":null},"cls":"أخرى / مؤشرات عامة"},{"s":"HQI","cat":"Patient Centered","id":"","k":"Percentage of Complaints Resolved Within 72 hours (%)","sub":"MCH","v":{"Q1-25":0.878,"Q2-25":0.93,"Q3-25":0.941},"bm":null,"gap":{"status":"unknown","gap":null,"latest":null},"cls":"جودة الخدمات الصحية"},{"s":"HQI","cat":"Patient Centered","id":"","k":"Overall Satisfaction with Complaint Resolution (%)","sub":"MCH","v":{"Q1-25":0.826,"Q2-25":0.846,"Q3-25":0.814},"bm":{"source":"BENCH","kpi_id":"QFR-59","target_text":"≥ 85%","target_parsed":{"raw":"≥ 85%","direction":"higher_better","value":0.85},"levels":{"l1":"≥ 85%","l2":"75 –84.9%","l3":"65 –74.9%","l4":"< 65%"}},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"جودة الخدمات الصحية"},{"s":"HQI","cat":"Timely & Equitable","id":"","k":"Median Time from ED arrival to Doctor Assessment (minutes)","sub":"MCH","v":{"Q1-25":21.0,"Q2-25":20.0,"Q3-25":13.0},"bm":{"source":"Benchmark","target_text":"","target_parsed":null,"levels":{"l1":"","l2":"","l3":"","l4":""},"definition":"Value 1: Time of referral\nValue 2: Time of admission to the LTC facility\nCalculation: Value 2 – Value 1"},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"جودة الخدمات الصحية"},{"s":"HQI","cat":"Timely & Equitable","id":"","k":"Admission to Elective Surgery Within Clinically Recommended Time (%)","sub":"MCH","v":{"Q2-25":1.0,"Q3-25":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"العمليات والكفاءة التشغيلية"},{"s":"HQI","cat":"Timely & Equitable","id":"","k":"Days to Third Next Available Appointment (days)","sub":"MCH","v":{"Q2-25":16.0,"Q3-25":18.0},"bm":null,"gap":{"status":"unknown","gap":null,"latest":null},"cls":"جودة الخدمات الصحية"},{"s":"HQI","cat":"Timely & Equitable","id":"","k":"Comprehensive Initial Assessment Compliance Rate (%)","sub":"MCH","v":{"Q1-25":1.0,"Q2-25":1.0,"Q3-25":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"جودة الخدمات الصحية"},{"s":"HQI","cat":"Timely & Equitable","id":"","k":"Patients Seen in Virtual Clinic (%)","sub":"MCH","v":{"Q1-25":0.219,"Q2-25":0.424,"Q3-25":0.305},"bm":{"source":"Benchmark","target_text":"","target_parsed":null,"levels":{"l1":"","l2":"","l3":"","l4":""},"definition":"Numerator: Clinic time utilized during the month\nDenominator: Clinic time available during the month\nCalculation: Numerator / Denominator"},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"جودة الخدمات الصحية"},{"s":"HQI","cat":"Safe","id":"","k":"Hospital Acquired Pressure Ulcers Rate (HAPU)","sub":"MCH","v":{"Q1-25":0.0,"Q2-25":0.0,"Q3-25":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"سلامة المرضى"},{"s":"HQI","cat":"Safe","id":"","k":"Percentage of Hand Hygiene Compliance (%)","sub":"MCH","v":{"Q1-25":0.77,"Q2-25":0.77,"Q3-25":0.77},"bm":null,"gap":{"status":"unknown","gap":null,"latest":null},"cls":"سلامة المرضى"},{"s":"HQI","cat":"Safe","id":"","k":"Inpatient Falls Rate (per 1,000)","sub":"MCH","v":{"Q1-25":0.1,"Q2-25":0.0,"Q3-25":0.1},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"سلامة المرضى"},{"s":"HQI","cat":"Safe","id":"","k":"Incidence of Hospital-Associated VTE (per 1,000)","sub":"MCH","v":{"Q1-25":0.4,"Q2-25":0.0,"Q3-25":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-36","target_text":"No Outbreaks or Outbreaks under","target_parsed":{"raw":"No Outbreaks or Outbreaks under","direction":null,"value":null},"levels":{"l1":"No Outbreaks or Outbreaks under","l2":"No Outbreaks or Outbreaks under control","l3":"Outbreaks that require support","l4":"Outbreaks led to department closed or bed capacity reduced"}},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"سلامة المرضى"},{"s":"HQI","cat":"Safe","id":"","k":"CLABSI Rate (per 1,000)","sub":"MCH","v":{"Q1-25":0.6,"Q2-25":1.3,"Q3-25":2.0},"bm":{"source":"BENCH","kpi_id":"QFR-33","target_text":"≤ 0.9 /1000 CL days","target_parsed":{"raw":"≤ 0.9 /1000 CL days","direction":"lower_better","value":0.9},"levels":{"l1":"≤ 0.9 /1000 CL days","l2":"> 0.9 –2.5 /1000 Cldays","l3":"> 2.5 –5 /1000 CL days","l4":"> 5 /1000 CL days"}},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"سلامة المرضى"},{"s":"HQI","cat":"Safe","id":"","k":"Doctors to Beds Staffing Ratio","sub":"MCH","v":{"Q1-25":0.7,"Q2-25":0.6,"Q3-25":0.7},"bm":null,"gap":{"status":"unknown","gap":null,"latest":null},"cls":"القوى العاملة والكوادر"},{"s":"HQI","cat":"Safe","id":"","k":"Nurses to Beds Staffing Ratio","sub":"MCH","v":{"Q1-25":1.7,"Q2-25":1.0,"Q3-25":0.9},"bm":null,"gap":{"status":"unknown","gap":null,"latest":null},"cls":"القوى العاملة والكوادر"},{"s":"HQI","cat":"Safe","id":"","k":"Nurse Vacancy Ratio (%)","sub":"MCH","v":{"Q1-25":0.035,"Q2-25":0.052,"Q3-25":0.049},"bm":{"source":"BENCH","kpi_id":"QFR-54","target_text":"1:(recommended # based on unit)","target_parsed":{"raw":"1:(recommended # based on unit)","direction":null,"value":1.0},"levels":{"l1":"1:(recommended # based on unit)","l2":"1:(recommended # based on unit)+1","l3":"1:(recommended # based on unit)+2","l4":"1:(recommended # based on unit)+3"}},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"القوى العاملة والكوادر"},{"s":"HQI","cat":"Safe","id":"","k":"Bed Occupancy Rate in Critical Care Areas (%)","sub":"MCH","v":{"Q1-25":0.854,"Q2-25":0.865,"Q3-25":0.872},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"سلامة المرضى"},{"s":"HQI","cat":"Effective","id":"","k":"Enrollment Rate for Top Five Diagnoses and Top Five Procedures/Surgeries into Established Clinical Pathways (%)","sub":"MCH","v":{"Q1-25":1.0,"Q2-25":1.0,"Q3-25":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"جودة الخدمات الصحية"},{"s":"HQI","cat":"Effective","id":"","k":"Unplanned Readmission Rate Following Elective Care (%)","sub":"MCH","v":{"Q1-25":0.007,"Q2-25":0.013,"Q3-25":0.006},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"سلامة المرضى"},{"s":"HQI","cat":"Effective","id":"","k":"Breast Cancer Screening Rate Using Mammogram (%)","sub":"MCH","v":{"Q1-25":0.324},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"جودة الخدمات الصحية"},{"s":"HQI","cat":"Effective","id":"","k":"Newborn Screening Rate (%)","sub":"MCH","v":{"Q1-25":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"جودة الخدمات الصحية"},{"s":"HQI","cat":"Effective","id":"","k":"Maternal Mortality Rate (per 100,000)","sub":"MCH","v":{"Q1-25":56.6,"Q2-25":57.8,"Q3-25":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-43","target_text":"%50 reduction from baseline (not \nexceeding national level of 13)","target_parsed":{"raw":"%50 reduction from baseline (not \nexceeding national level of 13)","direction":null,"value":0.5},"levels":{"l1":"≤ target","l2":"1-25% increase from target","l3":"25.1-50% increase from target","l4":"> 50% increase from target"}},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"سلامة المرضى"},{"s":"HQI","cat":"Effective","id":"","k":"Infant Mortality Rate (per 1,000)","sub":"MCH","v":{"Q1-25":6.2,"Q2-25":10.4,"Q3-25":11.4},"bm":{"source":"BENCH","kpi_id":"QFR-43","target_text":"%50 reduction from baseline (not \nexceeding national level of 13)","target_parsed":{"raw":"%50 reduction from baseline (not \nexceeding national level of 13)","direction":null,"value":0.5},"levels":{"l1":"≤ target","l2":"1-25% increase from target","l3":"25.1-50% increase from target","l4":"> 50% increase from target"}},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"سلامة المرضى"},{"s":"HQI","cat":"Efficient","id":"","k":"Staff Satisfaction Score (%)","sub":"MCH","v":{"Q1-25":0.721,"Q2-25":0.721},"bm":{"source":"BENCH","kpi_id":"QFR-59","target_text":"≥ 85%","target_parsed":{"raw":"≥ 85%","direction":"higher_better","value":0.85},"levels":{"l1":"≥ 85%","l2":"75 –84.9%","l3":"65 –74.9%","l4":"< 65%"}},"gap":{"status":"unknown","gap":null,"latest":null},"cls":"جودة الخدمات الصحية"},{"s":"HQI","cat":"Efficient","id":"","k":"Average Length of Stay (days)","sub":"MCH","v":{"Q1-25":3.7,"Q2-25":4.4,"Q3-25":4.2},"bm":null,"gap":{"status":"unknown","gap":null,"latest":null},"cls":"جودة الخدمات الصحية"},{"s":"PBP","cat":"Human Resources","id":"","k":"Physician FTE to patient ratio","sub":"MCH","v":{"2026-01":0.022,"2026-02":0.012,"2026-03":0.012},"bm":{"source":"BENCH","kpi_id":"QFR-56","target_text":"Variation from per baseline","target_parsed":{"raw":"Variation from per baseline","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.012},"cls":"القوى العاملة والكوادر"},{"s":"PBP","cat":"Human Resources","id":"","k":"Clinics to patient ratio","sub":"MCH","v":{"2026-01":0.0098,"2026-02":0.0876,"2026-03":0.1395},"bm":{"source":"BENCH","kpi_id":"QFR-53","target_text":"Variation from per baseline","target_parsed":{"raw":"Variation from per baseline","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.1395},"cls":"القوى العاملة والكوادر"},{"s":"PBP","cat":"Human Resources","id":"","k":"Nurses to Beds Staffing Ratio","sub":"MCH","v":{"2026-03":1.2},"bm":null,"gap":{"status":"unknown","gap":null,"latest":1.2},"cls":"القوى العاملة والكوادر"},{"s":"PBP","cat":"Human Resources","id":"","k":"Doctors to Beds Staffing Ratio","sub":"MCH","v":{"2026-03":0.79},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.79},"cls":"القوى العاملة والكوادر"},{"s":"PBP","cat":"Quality","id":"","k":"Number of Reported Sentinel Events","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-51","target_text":"Variation from per baseline","target_parsed":{"raw":"Variation from per baseline","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":1.0},"cls":"سلامة المرضى"},{"s":"PBP","cat":"Quality","id":"","k":"% Mortality Review","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-52","target_text":"≥ 90%","target_parsed":{"raw":"≥ 90%","direction":"higher_better","value":0.9},"levels":{"l1":"≥ 90%","l2":"70-89.9%","l3":"45-69.9%","l4":"< 45%"}},"gap":{"status":"far_below","gap":-0.9,"latest":0.0,"target":0.9},"cls":"سلامة المرضى"},{"s":"PBP","cat":"Quality","id":"","k":"Comprehensive Initial Assessment Compliance Rate (%)","sub":"MCH","v":{"2026-03":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":1.0},"cls":"جودة الخدمات الصحية"},{"s":"PBP","cat":"Patient experience","id":"","k":"% Patient Experience Score for Inpatient Services","sub":"MCH","v":{"2026-01":0.9659},"bm":{"source":"BENCH","kpi_id":"QFR-62","target_text":"88.95% (Q4 2025)","target_parsed":{"raw":"88.95% (Q4 2025)","direction":null,"value":0.8895000000000001},"levels":{"l1":"≥ Target","l2":"6 –10 % < target","l3":"12 –25 % < target","l4":"< 25 % of target"}},"gap":{"status":"unknown","gap":null,"latest":0.9659},"cls":"جودة الخدمات الصحية"},{"s":"PBP","cat":"Patient experience","id":"","k":"% Patient Experience Score for Emergency Services","sub":"MCH","v":{"2026-01":0.9582,"2026-02":0.9481,"2026-03":0.8818},"bm":{"source":"BENCH","kpi_id":"QFR-60","target_text":"79.05% (Q4 2025)","target_parsed":{"raw":"79.05% (Q4 2025)","direction":null,"value":0.7905},"levels":{"l1":"≥ Target","l2":"5 –10 % < target","l3":"11 –25 % < target","l4":"< 25 % of target"}},"gap":{"status":"unknown","gap":null,"latest":0.8818},"cls":"جودة الخدمات الصحية"},{"s":"PBP","cat":"Patient experience","id":"","k":"% Patient Experience Score for Outpatient Services","sub":"MCH","v":{"2026-01":0.9541,"2026-02":0.9349,"2026-03":0.9577},"bm":{"source":"BENCH","kpi_id":"QFR-60","target_text":"79.05% (Q4 2025)","target_parsed":{"raw":"79.05% (Q4 2025)","direction":null,"value":0.7905},"levels":{"l1":"≥ Target","l2":"5 –10 % < target","l3":"11 –25 % < target","l4":"< 25 % of target"}},"gap":{"status":"unknown","gap":null,"latest":0.9577},"cls":"جودة الخدمات الصحية"},{"s":"PBP","cat":"Patient experience","id":"","k":"MCH / ED-OPD-Inpatient","sub":"MCH","v":{"2026-03":0.9112},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.9112},"cls":"جودة الخدمات الصحية"},{"s":"PBP","cat":"Bed Utilization & Occupancy\n(Bed Manegment)","id":"","k":"Admission Rate","sub":"MCH","v":{"2026-01":0.0759,"2026-02":0.0551,"2026-03":0.0637},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0637},"cls":"العمليات والكفاءة التشغيلية"},{"s":"PBP","cat":"Bed Utilization & Occupancy\n(Bed Manegment)","id":"","k":"MCH","sub":"MCH","v":{"2026-01":0.8734,"2026-02":0.9123,"2026-03":0.8013},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.8013},"cls":"العمليات والكفاءة التشغيلية"},{"s":"PBP","cat":"Bed Utilization & Occupancy\n(Bed Manegment)","id":"","k":"% Ward Occupancy","sub":"MCH","v":{"2026-01":4.32,"2026-02":3.97,"2026-03":3.75},"bm":{"source":"BENCH","kpi_id":"QFR-10","target_text":"< 80%","target_parsed":{"raw":"< 80%","direction":"lower_better","value":0.8},"levels":{"l1":"< 80%","l2":"80-89.9%","l3":"90-94.9%","l4":"95-100%"}},"gap":{"status":"far_above","gap":-2.95,"latest":3.75,"target":0.8},"cls":"العمليات والكفاءة التشغيلية"},{"s":"PBP","cat":"Bed Utilization & Occupancy\n(Bed Manegment)","id":"","k":"ALOS PICU - Average LOS (Length of Stay)","sub":"MCH","v":{"2026-01":4.41,"2026-02":4.8,"2026-03":4.0},"bm":{"source":"BENCH","kpi_id":"QFR-11","target_text":"3-5 days","target_parsed":{"raw":"3-5 days","direction":null,"value":3.0},"levels":{"l1":"3-5 days","l2":"6 days","l3":"7 days","l4":"> 7 days"}},"gap":{"status":"unknown","gap":null,"latest":4.0},"cls":"العمليات والكفاءة التشغيلية"},{"s":"PBP","cat":"Bed Utilization & Occupancy\n(Bed Manegment)","id":"","k":"ALOS Inpatient - Average LOS (Length of Stay)","sub":"MCH","v":{"2026-03":3.990591123},"bm":{"source":"BENCH","kpi_id":"QFR-12","target_text":"3-5 days","target_parsed":{"raw":"3-5 days","direction":null,"value":3.0},"levels":{"l1":"3-5 days","l2":"7 days","l3":"8 days","l4":"> 7 days"}},"gap":{"status":"unknown","gap":null,"latest":3.990591123},"cls":"العمليات والكفاءة التشغيلية"},{"s":"PBP","cat":"Hospital Readiness & capacity\nEOC","id":"","k":"% ED Closure Time","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-6","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"العمليات والكفاءة التشغيلية"},{"s":"PBP","cat":"Hospital Readiness & capacity\nEOC","id":"","k":"% ICU Readiness for Healthcare","sub":"MCH","v":{"2026-01":1.0,"2026-02":1.0,"2026-03":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-1","target_text":"≥ 90%","target_parsed":{"raw":"≥ 90%","direction":"higher_better","value":0.9},"levels":{"l1":"≥ 90%","l2":"85-89.9%","l3":"80-84.9%","l4":"< 80%"}},"gap":{"status":"on_target","gap":0.09999999999999998,"latest":1.0,"target":0.9},"cls":"العمليات والكفاءة التشغيلية"},{"s":"PBP","cat":"Hospital Readiness & capacity\nEOC","id":"","k":"% ED Readiness for Healthcare","sub":"MCH","v":{"2026-01":0.973,"2026-02":0.9801,"2026-03":0.989},"bm":{"source":"BENCH","kpi_id":"QFR-1","target_text":"≥ 90%","target_parsed":{"raw":"≥ 90%","direction":"higher_better","value":0.9},"levels":{"l1":"≥ 90%","l2":"85-89.9%","l3":"80-84.9%","l4":"< 80%"}},"gap":{"status":"on_target","gap":0.08899999999999997,"latest":0.989,"target":0.9},"cls":"العمليات والكفاءة التشغيلية"},{"s":"PBP","cat":"Hospital Readiness & capacity\nEOC","id":"","k":"% Emergency Preparedness","sub":"MCH","v":{"2026-03":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-5","target_text":"≥ 90%","target_parsed":{"raw":"≥ 90%","direction":"higher_better","value":0.9},"levels":{"l1":"≥ 90%","l2":"80-89.9%","l3":"70-79.9%","l4":"< 70%"}},"gap":{"status":"on_target","gap":0.09999999999999998,"latest":1.0,"target":0.9},"cls":"العمليات والكفاءة التشغيلية"},{"s":"PBP","cat":"Hospital Readiness & capacity\nEOC","id":"","k":"Days to Third Next Available Appointment","sub":"MCH","v":{"2026-03":15.5},"bm":null,"gap":{"status":"unknown","gap":null,"latest":15.5},"cls":"العمليات والكفاءة التشغيلية"},{"s":"PBP","cat":"ADAA Health","id":"","k":"% All patients who re-attended emergency room within 72 hours","sub":"MCH","v":{"2026-01":0.019,"2026-02":0.0216,"2026-03":0.0051},"bm":{"source":"BENCH","kpi_id":"QFR-15","target_text":"≥ 75%","target_parsed":{"raw":"≥ 75%","direction":"higher_better","value":0.75},"levels":{"l1":"≥ 75%","l2":"67-74.9%","l3":"60-66.9%","l4":"<60%"}},"gap":{"status":"far_below","gap":-0.7449,"latest":0.0051,"target":0.75},"cls":"أخرى / مؤشرات عامة"},{"s":"PBP","cat":"ADAA Health","id":"","k":"% DAMA and LAMA","sub":"MCH","v":{"2026-01":0.014,"2026-02":0.0228,"2026-03":0.0298},"bm":{"source":"BENCH","kpi_id":"QFR-24","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0298},"cls":"أخرى / مؤشرات عامة"},{"s":"PBP","cat":"ADAA Health","id":"","k":"% Patients disposed within 4 hours","sub":"MCH","v":{"2026-01":0.9312,"2026-02":0.97,"2026-03":0.9748},"bm":{"source":"BENCH","kpi_id":"QFR-15","target_text":"≥ 75%","target_parsed":{"raw":"≥ 75%","direction":"higher_better","value":0.75},"levels":{"l1":"≥ 75%","l2":"67-74.9%","l3":"60-66.9%","l4":"<60%"}},"gap":{"status":"on_target","gap":0.2248,"latest":0.9748,"target":0.75},"cls":"أخرى / مؤشرات عامة"},{"s":"PBP","cat":"ADAA Health","id":"","k":"OR Utilization","sub":"MCH","v":{"2026-01":0.7538,"2026-02":0.6669,"2026-03":0.7213},"bm":{"source":"BENCH","kpi_id":"QFR-20","target_text":"> 75%","target_parsed":{"raw":"> 75%","direction":"higher_better","value":0.75},"levels":{"l1":"> 75%","l2":"62.5-75%","l3":"50-62.49%","l4":"< 50%"}},"gap":{"status":"near_target","gap":-0.028699999999999948,"latest":0.7213,"target":0.75},"cls":"العمليات والكفاءة التشغيلية"},{"s":"PBP","cat":"ADAA Health","id":"","k":"% Patients waiting for Elective Surgeries within 36 days","sub":"MCH","v":{"2026-01":1.0,"2026-02":1.0,"2026-03":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-17","target_text":"≥ 85%","target_parsed":{"raw":"≥ 85%","direction":"higher_better","value":0.85},"levels":{"l1":"≥ 85%","l2":"65-84.9%","l3":"50-64.9%","l4":"< 50%"}},"gap":{"status":"on_target","gap":0.15000000000000002,"latest":1.0,"target":0.85},"cls":"جودة الخدمات الصحية"},{"s":"PBP","cat":"ADAA Health","id":"","k":"Surgery Cancellation Rate","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.004},"bm":{"source":"BENCH","kpi_id":"QFR-22","target_text":"< 5%","target_parsed":{"raw":"< 5%","direction":"lower_better","value":0.05},"levels":{"l1":"< 5%","l2":"5-7.49%","l3":"7.5-10%","l4":"> 10%"}},"gap":{"status":"on_target","gap":0.046,"latest":0.004,"target":0.05},"cls":"العمليات والكفاءة التشغيلية"},{"s":"PBP","cat":"ADAA Health","id":"","k":"Admission to Elective Surgery Within Clinically Recommended Time","sub":"MCH","v":{"2026-03":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":1.0},"cls":"العمليات والكفاءة التشغيلية"},{"s":"PBP","cat":"ADAA Health","id":"","k":"Median Time from ED arrival to Doctor Assessment","sub":"MCH","v":{"2026-03":12.0},"bm":{"source":"Benchmark","target_text":"","target_parsed":null,"levels":{"l1":"","l2":"","l3":"","l4":""},"definition":"Value 1: Time of referral\nValue 2: Time of admission to the LTC facility\nCalculation: Value 2 – Value 1"},"gap":{"status":"unknown","gap":null,"latest":12.0},"cls":"جودة الخدمات الصحية"},{"s":"PBP","cat":"ADAA Health","id":"","k":"Lab Turnaround Time (TAT)","sub":"MCH","v":{"2026-01":1.0,"2026-02":1.0,"2026-03":1.0},"bm":{"source":"Benchmark","target_text":"","target_parsed":null,"levels":{"l1":"","l2":"","l3":"","l4":""},"definition":"Value 1: Time of referral\nValue 2: Time of admission to the LTC facility\nCalculation: Value 2 – Value 1"},"gap":{"status":"unknown","gap":null,"latest":1.0},"cls":"جودة الخدمات الصحية"},{"s":"PBP","cat":"ADAA Health","id":"","k":"Radiology Turnaround Time (TAT)","sub":"MCH","v":{"2026-01":0.8,"2026-02":0.7,"2026-03":0.53},"bm":{"source":"BENCH","kpi_id":"QFR-41","target_text":"≤ 1 hour","target_parsed":{"raw":"≤ 1 hour","direction":"lower_better","value":1.0},"levels":{"l1":"≤ 1 hour","l2":"> 1-2 hours","l3":"> 2-3 hours","l4":"> 3 hours"}},"gap":{"status":"on_target","gap":0.47,"latest":0.53,"target":1.0},"cls":"جودة الخدمات الصحية"},{"s":"PBP","cat":"ADAA Health","id":"","k":"% Hospital readmission rate for the same diagnosis within 30 days","sub":"MCH","v":{"2026-01":0.0136,"2026-02":0.0159,"2026-03":0.0097},"bm":{"source":"BENCH","kpi_id":"QFR-47","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0097},"cls":"سلامة المرضى"},{"s":"PBP","cat":"ADAA Health","id":"","k":"Unplanned Readmission Rate Following Elective Care","sub":"MCH","v":{"2026-03":0.009749303621},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.009749303621},"cls":"سلامة المرضى"},{"s":"PBP","cat":"ADAA Health","id":"","k":"Caesarian Section Rate","sub":"MCH","v":{"2026-01":0.2702205882,"2026-02":0.2586956522,"2026-03":0.2607003891},"bm":{"source":"BENCH","kpi_id":"QFR-21","target_text":"≤ 20%","target_parsed":{"raw":"≤ 20%","direction":"lower_better","value":0.2},"levels":{"l1":"≤ 20%","l2":"20 21.9%","l3":"22-25%","l4":"> 25 %"}},"gap":{"status":"above_target","gap":-0.060700389099999974,"latest":0.2607003891,"target":0.2},"cls":"أخرى / مؤشرات عامة"},{"s":"PBP","cat":"ADAA Health","id":"","k":"Incidence of Hospital Acquired Pressure Injury Rate per 1000","sub":"MCH","v":{"2026-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-37","target_text":"≤ 3.9%","target_parsed":{"raw":"≤ 3.9%","direction":"lower_better","value":0.039},"levels":{"l1":"≤ 3.9%","l2":"4-4.9%","l3":"5-6%","l4":"> 6%"}},"gap":{"status":"on_target","gap":0.039,"latest":0.0,"target":0.039},"cls":"سلامة المرضى"},{"s":"PBP","cat":"ADAA Health","id":"","k":"Inpatient Falls Rate","sub":"MCH","v":{"2026-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"سلامة المرضى"},{"s":"PBP","cat":"IPC\nInfection & prevention Control","id":"","k":"Hospital Outbreak","sub":"MCH","v":{"2026-01":0.0,"2026-02":"1C","2026-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-36","target_text":"No Outbreaks or Outbreaks under","target_parsed":{"raw":"No Outbreaks or Outbreaks under","direction":null,"value":null},"levels":{"l1":"No Outbreaks or Outbreaks under","l2":"No Outbreaks or Outbreaks under control","l3":"Outbreaks that require support","l4":"Outbreaks led to department closed or bed capacity reduced"}},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"سلامة المرضى"},{"s":"PBP","cat":"IPC\nInfection & prevention Control","id":"","k":"% Hand hygiene compliance","sub":"MCH","v":{"2026-03":0.76},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.76},"cls":"سلامة المرضى"},{"s":"PBP","cat":"Mortality Rate","id":"","k":"Morgue Capacity","sub":"MCH","v":{"2026-01":0.119,"2026-02":0.02,"2026-03":0.018},"bm":{"source":"BENCH","kpi_id":"QFR-63","target_text":"< 30%","target_parsed":{"raw":"< 30%","direction":"lower_better","value":0.3},"levels":{"l1":"< 30%","l2":"30-50%","l3":"51-69%)","l4":"≥ 70% (for 3 consecutive days)"}},"gap":{"status":"on_target","gap":0.282,"latest":0.018,"target":0.3},"cls":"سلامة المرضى"},{"s":"PBP","cat":"Mortality Rate","id":"","k":"In-Hospital Mortality Rate","sub":"MCH","v":{"2026-01":0.0008,"2026-02":0.0009,"2026-03":0.0007},"bm":{"source":"BENCH","kpi_id":"QFR-42","target_text":"< 5%","target_parsed":{"raw":"< 5%","direction":"lower_better","value":0.05},"levels":{"l1":"< 5%","l2":"5-7.49%","l3":"7.5-10%","l4":"> 10%"}},"gap":{"status":"on_target","gap":0.049300000000000004,"latest":0.0007,"target":0.05},"cls":"سلامة المرضى"},{"s":"PBP","cat":"Mortality Rate","id":"","k":"Perioperative Mortality Rate","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-45","target_text":"Variation from per baseline","target_parsed":{"raw":"Variation from per baseline","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"سلامة المرضى"},{"s":"PBP","cat":"MOC","id":"","k":"Enrollment Rate for Top Five Diagnoses into Established Clinical Pathways","sub":"MCH","v":{"2026-03":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":1.0},"cls":"أخرى / مؤشرات عامة"},{"s":"PBP","cat":"MOC","id":"","k":"Newborn Screening","sub":"MCH","v":{"2026-03":0.994757536},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.994757536},"cls":"جودة الخدمات الصحية"},{"s":"Clinical Audit","cat":"Emergency Care - Sepsis","id":"","k":"Proportion of patient who accessed the acute care of Sepsis within specific time of presentation (Compliance to 1-hour Bundle ) (KPI1,KPI2,KPI3,KPI4)","sub":"MCH","v":{"2026-01":0.92,"2026-02":1.0,"2026-03":1.0,"2026-04":1.0,"2026-05":1.0,"2026-06":1.0,"2026-07":1.0,"2026-08":1.0,"2026-09":1.0,"2026-10":1.0,"2026-11":1.0,"2026-12":1.0,"2027-01":1.0,"2027-03":1.0},"bm":{"source":"Benchmark","target_text":"","target_parsed":null,"levels":{"l1":"","l2":"","l3":"","l4":""},"definition":"Value 1: Time of referral\nValue 2: Time of admission to the LTC facility\nCalculation: Value 2 – Value 1"},"gap":{"status":"unknown","gap":null,"latest":1.0},"cls":"جودة الخدمات الصحية"},{"s":"Clinical Audit","cat":"Emergency Care - Sepsis","id":"","k":"% Sepsis Moratlity","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0,"2027-03":0.0},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"سلامة المرضى"},{"s":"Clinical Audit","cat":"Emergency Care - PICU","id":"","k":"Percentage of patients readmitted to the ICU within 48 hours of discharge","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0,"2027-03":0.026},"bm":{"source":"BENCH","kpi_id":"QFR-15","target_text":"≥ 75%","target_parsed":{"raw":"≥ 75%","direction":"higher_better","value":0.75},"levels":{"l1":"≥ 75%","l2":"67-74.9%","l3":"60-66.9%","l4":"<60%"}},"gap":{"status":"far_below","gap":-0.75,"latest":0.0,"target":0.75},"cls":"العمليات والكفاءة التشغيلية"},{"s":"Clinical Audit","cat":"Emergency Care - PICU","id":"","k":"Unplanned Extubations rate","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0,"2027-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"سلامة المرضى"},{"s":"Clinical Audit","cat":"Emergency Care - PICU","id":"","k":"Percentage of Re-Intubation within 48 hours of extubation","sub":"MCH","v":{"2026-01":0.333,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0,"2027-03":0.0},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"سلامة المرضى"},{"s":"Clinical Audit","cat":"Emergency Care - PICU","id":"","k":"Total number of Ventilator days","sub":"MCH","v":{"2026-01":14.0,"2026-02":8.0,"2026-03":8.0,"2026-04":8.0,"2026-05":8.0,"2026-06":8.0,"2026-07":8.0,"2026-08":8.0,"2026-09":8.0,"2026-10":8.0,"2026-11":8.0,"2026-12":8.0,"2027-01":8.0,"2027-03":2.0},"bm":null,"gap":{"status":"unknown","gap":null,"latest":8.0},"cls":"أخرى / مؤشرات عامة"},{"s":"Clinical Audit","cat":"Emergency Care - NICU","id":"","k":"Unplanned Extubations rate","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0,"2027-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"سلامة المرضى"},{"s":"Clinical Audit","cat":"Emergency Care - NICU","id":"","k":"% of Re-Intubation within 48 hours of extubation","sub":"MCH","v":{"2026-01":0.034,"2026-02":0.067,"2026-03":0.067,"2026-04":0.067,"2026-05":0.067,"2026-06":0.067,"2026-07":0.067,"2026-08":0.067,"2026-09":0.067,"2026-10":0.067,"2026-11":0.067,"2026-12":0.067,"2027-01":0.067,"2027-03":0.071},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.067},"cls":"سلامة المرضى"},{"s":"Clinical Audit","cat":"Emergency Care - NICU","id":"","k":"% of CLD (Chronic Lung Disease)for ALL babies less than 1500 gm on O2","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0,"2027-03":0.0},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"أخرى / مؤشرات عامة"},{"s":"Clinical Audit","cat":"Emergency Care - NICU","id":"","k":"% of ROP (Retinopathy of Prematurity) for ALL babies less than 1500 gm","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0,"2027-03":0.0},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"أخرى / مؤشرات عامة"},{"s":"Clinical Audit","cat":"Emergency Care - NICU","id":"","k":"% of IVH (Intraventricular Hemorrhage) for ALL babies less than 1500 gm","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.077,"2026-03":0.077,"2026-04":0.077,"2026-05":0.077,"2026-06":0.077,"2026-07":0.077,"2026-08":0.077,"2026-09":0.077,"2026-10":0.077,"2026-11":0.077,"2026-12":0.077,"2027-01":0.077,"2027-03":0.1},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.077},"cls":"أخرى / مؤشرات عامة"},{"s":"Clinical Audit","cat":"Emergency Care - NICU","id":"","k":"% of NEC ( Necrotising Enterocolitis) for ALL babies","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.077,"2026-03":0.077,"2026-04":0.077,"2026-05":0.077,"2026-06":0.077,"2026-07":0.077,"2026-08":0.077,"2026-09":0.077,"2026-10":0.077,"2026-11":0.077,"2026-12":0.077,"2027-01":0.077,"2027-03":0.0},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.077},"cls":"أخرى / مؤشرات عامة"},{"s":"Clinical Audit","cat":"Emergency Care - NICU","id":"","k":"% of HIE (Hypoxic ischemic encephalopathy) for ALL babies","sub":"MCH","v":{"2026-01":0.2,"2026-02":0.154,"2026-03":0.154,"2026-04":0.154,"2026-05":0.154,"2026-06":0.154,"2026-07":0.154,"2026-08":0.154,"2026-09":0.154,"2026-10":0.154,"2026-11":0.154,"2026-12":0.154,"2027-01":0.154,"2027-03":0.1},"bm":null,"gap":{"status":"unknown","gap":null,"latest":0.154},"cls":"أخرى / مؤشرات عامة"},{"s":"Clinical Audit","cat":"Emergency Care - NICU","id":"","k":"NICU mortality rate","sub":"MCH","v":{"2026-01":0.081,"2026-02":0.079,"2026-03":0.079,"2026-04":0.079,"2026-05":0.079,"2026-06":0.079,"2026-07":0.079,"2026-08":0.079,"2026-09":0.079,"2026-10":0.079,"2026-11":0.079,"2026-12":0.079,"2027-01":0.079,"2027-03":0.089},"bm":{"source":"BENCH","kpi_id":"QFR-44","target_text":"< 5 /1000live births","target_parsed":{"raw":"< 5 /1000live births","direction":"lower_better","value":0.05},"levels":{"l1":"< 5 /1000live births","l2":"5-5.5 /1000live births","l3":"5.6-6 /1000live births","l4":"> 6/1000 live births"}},"gap":{"status":"near_target","gap":-0.028999999999999998,"latest":0.079,"target":0.05},"cls":"سلامة المرضى"},{"s":"Clinical Audit","cat":"Emergency Care - NICU","id":"","k":"Total number of Ventilator days","sub":"MCH","v":{"2026-01":1.122,"2026-02":1.74,"2026-03":1.74,"2026-04":1.74,"2026-05":1.74,"2026-06":1.74,"2026-07":1.74,"2026-08":1.74,"2026-09":1.74,"2026-10":1.74,"2026-11":1.74,"2026-12":1.74,"2027-01":1.74,"2027-03":1.54},"bm":null,"gap":{"status":"unknown","gap":null,"latest":1.74},"cls":"أخرى / مؤشرات عامة"},{"s":"Clinical Audit","cat":"Maternity care\n(MCH) - CPR","id":"","k":"Proportion of in hospital survived event post cardiac arrest (sustained ROSC >20 min)","sub":"MCH","v":{"2026-01":0.3333,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0,"2027-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-36","target_text":"No Outbreaks or Outbreaks under","target_parsed":{"raw":"No Outbreaks or Outbreaks under","direction":null,"value":null},"levels":{"l1":"No Outbreaks or Outbreaks under","l2":"No Outbreaks or Outbreaks under control","l3":"Outbreaks that require support","l4":"Outbreaks led to department closed or bed capacity reduced"}},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"أخرى / مؤشرات عامة"},{"s":"Clinical Audit","cat":"Maternity care\n(MCH) - CPR","id":"","k":"Proportion of in-hospital cardiac arrest survived to discharge","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0,"2027-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-36","target_text":"No Outbreaks or Outbreaks under","target_parsed":{"raw":"No Outbreaks or Outbreaks under","direction":null,"value":null},"levels":{"l1":"No Outbreaks or Outbreaks under","l2":"No Outbreaks or Outbreaks under control","l3":"Outbreaks that require support","l4":"Outbreaks led to department closed or bed capacity reduced"}},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"العمليات والكفاءة التشغيلية"},{"s":"Clinical Audit","cat":"Nursing care measures - CPR","id":"","k":"Pressure Ulcer Rate  (incidents)","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0,"2027-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-37","target_text":"≤ 3.9%","target_parsed":{"raw":"≤ 3.9%","direction":"lower_better","value":0.039},"levels":{"l1":"≤ 3.9%","l2":"4-4.9%","l3":"5-6%","l4":"> 6%"}},"gap":{"status":"on_target","gap":0.039,"latest":0.0,"target":0.039},"cls":"سلامة المرضى"},{"s":"Clinical Audit","cat":"Nursing care measures - CPR","id":"","k":"Patient fall rate in-patient  ( per 1,000 patients care days )","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0,"2027-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"سلامة المرضى"},{"s":"Clinical Audit","cat":"VTE prevention measures - CPR","id":"","k":"Number of patient files checked","sub":"MCH","v":{"2026-01":1.69,"2026-02":1.72,"2026-03":1.72,"2026-04":1.72,"2026-05":1.72,"2026-06":1.72,"2026-07":1.72,"2026-08":1.72,"2026-09":1.72,"2026-10":1.72,"2026-11":1.72,"2026-12":1.72,"2027-01":1.72,"2027-03":1.0},"bm":null,"gap":{"status":"unknown","gap":null,"latest":1.72},"cls":"سلامة المرضى"},{"s":"Clinical Audit","cat":"VTE prevention measures - CPR","id":"","k":"VTE risk Assessment form adherence","sub":"MCH","v":{"2026-01":1.0,"2026-02":1.0,"2026-03":1.0,"2026-04":1.0,"2026-05":1.0,"2026-06":1.0,"2026-07":1.0,"2026-08":1.0,"2026-09":1.0,"2026-10":1.0,"2026-11":1.0,"2026-12":1.0,"2027-01":1.0,"2027-03":1.0},"bm":null,"gap":{"status":"unknown","gap":null,"latest":1.0},"cls":"سلامة المرضى"},{"s":"Clinical Audit","cat":"VTE prevention measures - CPR","id":"","k":"Appropriate prophylaxis given","sub":"MCH","v":{"2026-01":1.0,"2026-02":1.0,"2026-03":1.0,"2026-04":1.0,"2026-05":1.0,"2026-06":1.0,"2026-07":1.0,"2026-08":1.0,"2026-09":1.0,"2026-10":1.0,"2026-11":1.0,"2026-12":1.0,"2027-01":1.0,"2027-03":1.0},"bm":null,"gap":{"status":"unknown","gap":null,"latest":1.0},"cls":"سلامة المرضى"},{"s":"Clinical Audit","cat":"VTE prevention measures - CPR","id":"","k":"Hospital achieve VTE program target","sub":"MCH","v":{"2026-01":1.0,"2026-02":1.0,"2026-03":1.0,"2026-04":1.0,"2026-05":1.0,"2026-06":1.0,"2026-07":1.0,"2026-08":1.0,"2026-09":1.0,"2026-10":1.0,"2026-11":1.0,"2026-12":1.0,"2027-01":1.0,"2027-03":1.0},"bm":{"source":"BENCH","kpi_id":"QFR-36","target_text":"No Outbreaks or Outbreaks under","target_parsed":{"raw":"No Outbreaks or Outbreaks under","direction":null,"value":null},"levels":{"l1":"No Outbreaks or Outbreaks under","l2":"No Outbreaks or Outbreaks under control","l3":"Outbreaks that require support","l4":"Outbreaks led to department closed or bed capacity reduced"}},"gap":{"status":"unknown","gap":null,"latest":1.0},"cls":"سلامة المرضى"},{"s":"Clinical Audit","cat":"VTE prevention measures - CPR","id":"","k":"Incidence of Hospital Associated VTE per 1000 admission","sub":"MCH","v":{"2026-01":0.75,"2026-02":0.87,"2026-03":0.87,"2026-04":0.87,"2026-05":0.87,"2026-06":0.87,"2026-07":0.87,"2026-08":0.87,"2026-09":0.87,"2026-10":0.87,"2026-11":0.87,"2026-12":0.87,"2027-01":0.87,"2027-03":0.8},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.87},"cls":"سلامة المرضى"},{"s":"Clinical Audit","cat":"VTE prevention measures - CPR","id":"","k":"Ratio of Adult Deaths (exclude the maternity)  per 1000 adult admission","sub":"MCH","v":{"2026-01":0.0,"2026-02":0.0,"2026-03":0.0,"2026-04":0.0,"2026-05":0.0,"2026-06":0.0,"2026-07":0.0,"2026-08":0.0,"2026-09":0.0,"2026-10":0.0,"2026-11":0.0,"2026-12":0.0,"2027-01":0.0,"2027-03":0.0},"bm":{"source":"BENCH","kpi_id":"QFR-7","target_text":"Variation from per baseline (Baseline to be determined)","target_parsed":{"raw":"Variation from per baseline (Baseline to be determined)","direction":null,"value":null},"levels":{"l1":"Variation from baseline","l2":"Variation from baseline","l3":"Variation from baseline","l4":"Variation from baseline"}},"gap":{"status":"unknown","gap":null,"latest":0.0},"cls":"سلامة المرضى"}];
+let AVAILABLE_MONTHS = []; // months that actually have data
+let currentPage = 'executive';
+let currentPeriod = 'all';
+let filters = {classification:'', sheet:'', status:'', search:''};
+let charts = {};
+let autoRefreshTimer = null;
+
+// ============ DATA LOADING ============
+async function tryFetch(url) {
+    const resp = await fetch(url, {redirect: 'follow'});
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const txt = await resp.text();
+    if (!txt || txt.trim().startsWith('<') || !txt.includes(',')) {
+        throw new Error('Invalid response (HTML returned)');
+    }
+    return txt;
+}
+
+async function tryFetchProxied(url) {
+    for (const proxy of CORS_PROXIES) {
+        try {
+            return await tryFetch(proxy + encodeURIComponent(url));
+        } catch (e) { continue; }
+    }
+    throw new Error('All proxies failed');
+}
+
+function parseValueCell(raw) {
+    if (raw === '' || raw === undefined || raw === null) return null;
+    const s = String(raw).trim();
+    if (s === '' || s === '#DIV/0!' || s.toLowerCase() === 'nan') return null;
+    // Try numeric — handle percentages "85%", "0.85", "85"
+    if (s.endsWith('%')) {
+        const n = parseFloat(s.slice(0, -1));
+        return isNaN(n) ? s : n / 100;
+    }
+    const n = parseFloat(s);
+    if (!isNaN(n) && /^-?[\d,.]+$/.test(s.replace(/,/g, ''))) return n;
+    return s;
+}
+
+function parseBenchmark(text) {
+    if (!text) return null;
+    const t = String(text).replace(/%/g, '').replace(/,/g, '').toLowerCase();
+    let direction = null;
+    if (/(less than|<\s|<|≤|<=|below)/.test(t)) direction = 'lower_better';
+    else if (/(more than|>\s|>|≥|>=|greater|above)/.test(t)) direction = 'higher_better';
+    const m = t.match(/(\d+(?:\.\d+)?)/);
+    if (!m) return {raw: text, direction, value: null};
+    let val = parseFloat(m[1]);
+    if (text.includes('%') || (val <= 100 && !/days|mins|hour/.test(t))) {
+        if (val > 1) val = val / 100;
+    }
+    return {raw: text, direction, value: val};
+}
+
+function computeGap(latest, bm) {
+    if (latest === null || latest === undefined || isNaN(latest) || !bm || !bm.target_parsed || bm.target_parsed.value === null) {
+        return {status: 'unknown', gap: null, latest};
+    }
+    const target = bm.target_parsed.value;
+    const dir = bm.target_parsed.direction;
+    let gap, status;
+    if (dir === 'higher_better') {
+        gap = latest - target;
+        if (gap >= 0) status = 'on_target';
+        else if (gap >= -0.05) status = 'near_target';
+        else if (gap >= -0.15) status = 'below_target';
+        else status = 'far_below';
+    } else if (dir === 'lower_better') {
+        gap = target - latest;
+        if (gap >= 0) status = 'on_target';
+        else if (gap >= -0.05) status = 'near_target';
+        else if (gap >= -0.15) status = 'above_target';
+        else status = 'far_above';
+    } else {
+        return {status: 'unknown', gap: null, latest};
+    }
+    return {status, gap, latest, target, direction: dir};
+}
+
+function getLatestValue(monthVals) {
+    for (let i = ALL_MONTHS.length - 1; i >= 0; i--) {
+        const v = monthVals[ALL_MONTHS[i]];
+        if (typeof v === 'number') return {val: v, month: ALL_MONTHS[i]};
+    }
+    return {val: null, month: null};
+}
+
+// Helper: find column value with fuzzy matching
+function getCol(row, names) {
+    for (const n of names) {
+        if (row[n] !== undefined && row[n] !== null && row[n] !== '') return row[n];
+    }
+    // Try case-insensitive
+    const keys = Object.keys(row);
+    for (const n of names) {
+        const lc = n.toLowerCase();
+        const k = keys.find(kk => kk.toLowerCase() === lc);
+        if (k && row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k];
+    }
+    return '';
+}
+
+// Convert embedded KPI data to dashboard format
+function loadEmbeddedData() {
+    KPI_DATA = EMBEDDED_KPIS.map(k => {
+        // EMBEDDED already has v dict with month keys like "2026-01"
+        // Convert to JAN, FEB, ... format
+        const v = {};
+        const monthMap = {'2026-01':'JAN','2026-02':'FEB','2026-03':'MAR','2026-04':'APR','2026-05':'MAY','2026-06':'JUN','2026-07':'JUL','2026-08':'AUG','2026-09':'SEP','2026-10':'OCT','2026-11':'NOV','2026-12':'DEC'};
+        for (const [key, val] of Object.entries(k.v || {})) {
+            if (monthMap[key]) {
+                v[monthMap[key]] = val;
+            } else {
+                v[key] = val;  // Keep Q1-25 etc.
+            }
+        }
+        // Also fill any missing months from "MAY"/"JUN" string keys (some sheets use those)
+        for (const m of ALL_MONTHS) {
+            if (!(m in v) && k.v && (m in k.v)) {
+                v[m] = k.v[m];
+            }
+        }
+        const latest = getLatestValue(v);
+        return {
+            s: k.s || '',
+            cls: k.cls || 'أخرى / مؤشرات عامة',
+            cat: k.cat || '',
+            id: k.id || '',
+            k: k.k || '',
+            sub: k.sub || 'MCH',
+            v: v,
+            bm: k.bm || null,
+            gap: k.gap || {status: 'unknown', gap: null, latest: latest.val},
+            latestMonth: latest.month
+        };
+    });
+}
+
+async function loadData() {
+    document.getElementById('loading-state').style.display = 'block';
+    document.getElementById('error-state').style.display = 'none';
+    document.getElementById('content').style.display = 'none';
+    setStatus('جارٍ التحميل...', 'warn');
+    
+    // Try Google Sheets connection first
+    let csvText = null;
+    let connectedToSheets = false;
+    let attemptLog = [];
+    
+    try {
+        try { 
+            csvText = await tryFetch(SHEET_CSV_URL);
+            attemptLog.push('✓ Direct fetch succeeded');
+            connectedToSheets = true;
+        }
+        catch (e) { 
+            attemptLog.push('✗ Direct fetch failed: ' + e.message);
+            csvText = await tryFetchProxied(SHEET_CSV_URL);
+            attemptLog.push('✓ Proxy fetch succeeded');
+            connectedToSheets = true;
+        }
+    } catch (err) {
+        attemptLog.push('✗ All proxies failed: ' + err.message);
+        connectedToSheets = false;
+    }
+    
+    // Try parse CSV if we got it
+    let parsedSuccessfully = false;
+    if (csvText) {
+        try {
+            const parsed = Papa.parse(csvText, {header: true, skipEmptyLines: true, dynamicTyping: false});
+            const headers = parsed.meta.fields || [];
+            
+            // Check if it has expected structure
+            const hasExpectedCols = headers.some(h => ['KPI','Source','Target','JAN','FEB','MAR'].includes(h));
+            
+            if (hasExpectedCols) {
+                AVAILABLE_MONTHS = ALL_MONTHS.filter(m => headers.includes(m));
+                
+                KPI_DATA = parsed.data.map(row => {
+                    const kpi = getCol(row, ['KPI', 'kpi', 'Indicator', 'indicator', 'المؤشر']);
+                    const sub = getCol(row, ['Sub', 'sub', 'Subindicator', 'Detail']);
+                    const source = getCol(row, ['Source', 'source', 'Sheet', 'sheet']);
+                    const cls = getCol(row, ['Classification', 'classification', 'Class']);
+                    const cat = getCol(row, ['Category', 'category', 'Domain']);
+                    const id = getCol(row, ['KPI_ID', 'KPI ID', 'kpi_id', 'ID']);
+                    
+                    if (!kpi && !sub) return null;
+                    
+                    const v = {};
+                    for (const m of ALL_MONTHS) v[m] = parseValueCell(row[m]);
+                    v['Y2025'] = parseValueCell(getCol(row, ['Y2025', 'Y_2025', '2025']));
+                    for (const q of ['Q1-25','Q2-25','Q3-25']) v[q] = parseValueCell(row[q]);
+                    
+                    const bmTarget = getCol(row, ['Target', 'target', 'Benchmark']);
+                    const bmSource = getCol(row, ['Benchmark_Source', 'benchmark_source']);
+                    const bm = bmTarget ? {
+                        source: bmSource,
+                        target_text: bmTarget,
+                        target_parsed: parseBenchmark(bmTarget),
+                        levels: {
+                            l1: getCol(row, ['Standard_World', 'Standard', 'World_Class']),
+                            l2: getCol(row, ['Acceptable_Distress', 'Acceptable', 'Distress']),
+                            l3: getCol(row, ['Needs_Failing', 'Needs', 'Failing', 'Needs_Improvement']),
+                            l4: getCol(row, ['Failed', 'Unacceptable'])
+                        }
+                    } : null;
+                    const latest = getLatestValue(v);
+                    const gap = computeGap(latest.val, bm);
+                    return {
+                        s: source || 'Unknown',
+                        cls: cls || 'أخرى / مؤشرات عامة',
+                        cat: cat || '',
+                        id: id || '',
+                        k: kpi || '',
+                        sub: sub || '',
+                        v: v, bm: bm, gap: gap, latestMonth: latest.month
+                    };
+                }).filter(k => k !== null);
+                
+                if (KPI_DATA.length > 0) {
+                    parsedSuccessfully = true;
+                }
+            }
+        } catch (e) {
+            console.warn('CSV parse error:', e);
+        }
+    }
+    
+    // Fallback to embedded data
+    if (!parsedSuccessfully) {
+        loadEmbeddedData();
+        // Detect months from embedded data
+        const monthsInData = new Set();
+        for (const k of KPI_DATA) {
+            for (const m of ALL_MONTHS) {
+                if (typeof k.v[m] === 'number') monthsInData.add(m);
+            }
+        }
+        AVAILABLE_MONTHS = ALL_MONTHS.filter(m => monthsInData.has(m));
+        setStatus('بيانات مضمّنة · ' + KPI_DATA.length + ' مؤشر', 'warn');
+        document.getElementById('live-text').textContent = 'بيانات محلية';
+    } else {
+        setStatus('متصل · ' + KPI_DATA.length + ' مؤشر', 'ok');
+        document.getElementById('live-text').textContent = 'مباشر من Google Sheets';
+    }
+    
+    document.getElementById('last-update-side').textContent = 'تحديث: ' + new Date().toLocaleTimeString('ar-SA');
+    document.getElementById('nav-kpi-count').textContent = KPI_DATA.length;
+    document.getElementById('nav-gap-count').textContent = KPI_DATA.filter(k => k.gap.status !== 'unknown').length;
+    
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+    
+    document.getElementById('data-info').innerHTML = `
+        <strong>📊 ملخص البيانات:</strong><br>
+        • عدد المؤشرات: <strong>${KPI_DATA.length}</strong><br>
+        • مصدر البيانات: <strong>${parsedSuccessfully ? 'Google Sheets (مباشر)' : 'بيانات مضمّنة من ملف Drive'}</strong><br>
+        • الأشهر المتاحة: <strong>${AVAILABLE_MONTHS.join(', ') || 'لا توجد'}</strong><br>
+        • المؤشرات مع معايير مرجعية: <strong>${KPI_DATA.filter(k => k.bm).length}</strong><br>
+        • التحديث التلقائي: <strong>كل ${AUTO_REFRESH_MS/60000} دقائق</strong><br>
+        • آخر تحديث: <strong>${new Date().toLocaleString('ar-SA')}</strong>
+    `;
+    
+    setupNav();
+    populateFilters();
+    renderAll();
+    
+    if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+    autoRefreshTimer = setInterval(loadData, AUTO_REFRESH_MS);
+}
+
+function setStatus(text, kind) {
+    document.getElementById('status-text').textContent = text;
+    const dot = document.getElementById('status-dot');
+    dot.className = 'status-dot ' + (kind === 'ok' ? 'live' : kind === 'err' ? 'err' : 'warn');
+    const ind = document.getElementById('live-indicator');
+    ind.style.background = kind === 'ok' ? '#16a34a' : kind === 'err' ? '#dc2626' : '#f59e0b';
+}
+
+// ============ NAVIGATION ============
+function setupNav() {
+    document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+        item.onclick = () => {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            item.classList.add('active');
+            switchPage(item.dataset.page, item.dataset.class);
+            document.getElementById('sidebar').classList.remove('open');
+        };
+    });
+}
+
+function switchPage(page, cls) {
+    currentPage = page;
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+    
+    const titles = {
+        executive: ['الموجز التنفيذي', 'نظرة شاملة على أداء MCH 2026'],
+        kpis: ['المؤشرات الرئيسية', 'استعراض جميع المؤشرات والأشهر'],
+        gap: ['تحليل الفجوة', 'مقارنة الأداء بالمعايير المرجعية'],
+        trends: ['الاتجاهات السنوية', 'متوسط الأداء عبر الأشهر'],
+        about: ['عن الداشبورد', 'معلومات حول الاتصال والمصادر']
+    };
+    const t = titles[page] || ['',''];
+    document.getElementById('page-title').textContent = t[0];
+    document.getElementById('page-subtitle').textContent = t[1];
+    
+    document.getElementById('period-selector').style.display = (page === 'kpis') ? 'flex' : 'none';
+    
+    if (page === 'kpis' && cls) {
+        filters.classification = cls;
+        document.getElementById('filter-class').value = cls;
+        renderKPIs();
+    }
+    if (page === 'trends') drawTrends();
+}
+
+// ============ HELPERS ============
+function fmt(v, asPct) {
+    if (v === null || v === undefined || v === '' || (typeof v === 'number' && isNaN(v))) return '—';
+    if (typeof v === 'number') {
+        if (v === 0) return '0';
+        if (Math.abs(v) <= 1 && (asPct || Math.abs(v) < 1)) return (v*100).toFixed(1) + '%';
+        if (Number.isInteger(v)) return v.toLocaleString('en-US');
+        return v.toFixed(2);
+    }
+    return String(v);
+}
+
+function getStatus(k) { return k.gap?.status || 'unknown'; }
+
+function getQ1Trend(k) {
+    const j = k.v.JAN, m = k.v.MAR;
+    if (typeof j === 'number' && typeof m === 'number' && j !== 0) return ((m-j)/Math.abs(j))*100;
+    return null;
+}
+
+function getYearTrend(k) {
+    const months = AVAILABLE_MONTHS.length ? AVAILABLE_MONTHS : ALL_MONTHS;
+    const vals = months.map(m => k.v[m]).filter(v => typeof v === 'number');
+    if (vals.length < 2) return null;
+    const first = vals[0], last = vals[vals.length-1];
+    if (first === 0) return null;
+    return ((last-first)/Math.abs(first))*100;
+}
+
+// ============ EXEC PAGE ============
+function renderExecutive() {
+    const total = KPI_DATA.length;
+    const withBm = KPI_DATA.filter(k => k.bm).length;
+    const counts = {on_target:0, near_target:0, below_target:0, above_target:0, far_below:0, far_above:0, unknown:0};
+    for (const k of KPI_DATA) counts[getStatus(k)]++;
+    const onTarget = counts.on_target;
+    const offTarget = counts.far_below + counts.far_above + counts.below_target + counts.above_target;
+    const evaluable = total - counts.unknown;
+    
+    const trends = KPI_DATA.map(k => getYearTrend(k)).filter(t => t !== null && Math.abs(t) < 500);
+    const improving = trends.filter(t => t > 1).length;
+    const declining = trends.filter(t => t < -1).length;
+    
+    const tiles = [
+        {label:'إجمالي المؤشرات', val: total, ctx: `${withBm} مع معايير مرجعية`, cls:'accent'},
+        {label:'ضمن الهدف', val: onTarget, ctx: `من أصل ${evaluable} قابل للتقييم`, cls:'success'},
+        {label:'يحتاج تحسين', val: offTarget, ctx: 'يستوجب خطة عمل', cls: offTarget > 5 ? 'danger' : 'warn'},
+        {label:'مؤشرات في تحسّن', val: improving, ctx: 'تحسّن خلال الأشهر المتاحة', cls:'success'},
+        {label:'مؤشرات في تراجع', val: declining, ctx: 'تراجع خلال الأشهر المتاحة', cls: declining > 5 ? 'danger' : 'warn'},
+        {label:'نسبة الالتزام', val: evaluable ? Math.round(onTarget/evaluable*100) + '%' : '—', ctx: 'تحقيق الأهداف', cls:'accent'}
+    ];
+    document.getElementById('exec-tiles').innerHTML = tiles.map(t => `
+        <div class="kpi-tile ${t.cls}">
+            <div class="label">${t.label}</div>
+            <div class="value">${t.val}</div>
+            <div class="ctx">${t.ctx}</div>
+        </div>
+    `).join('');
+    
+    // Class chart
+    const classCounts = {};
+    for (const k of KPI_DATA) classCounts[k.cls] = (classCounts[k.cls]||0)+1;
+    const classLabels = Object.keys(classCounts);
+    if (charts.execClass) charts.execClass.destroy();
+    charts.execClass = new Chart(document.getElementById('execChartClass'), {
+        type: 'doughnut',
+        data: {
+            labels: classLabels,
+            datasets: [{
+                data: classLabels.map(l => classCounts[l]),
+                backgroundColor: classLabels.map(l => CLASS_INFO[l]?.color || '#64748b'),
+                borderWidth: 3, borderColor: 'white'
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: {position: 'right', labels: {font: {family:'Cairo', size: 11}, padding: 10, boxWidth: 12}} }
+        }
+    });
+    
+    // Gap chart
+    const order = ['on_target','near_target','below_target','above_target','far_below','far_above','unknown'];
+    const labels = order.filter(s => counts[s]).map(s => STATUS_INFO[s].label);
+    const vals = order.filter(s => counts[s]).map(s => counts[s]);
+    const colors = order.filter(s => counts[s]).map(s => {
+        const t = STATUS_INFO[s].tone;
+        return t==='on'?'#16a34a':t==='near'?'#f59e0b':t==='below'?'#d97706':t==='far'?'#dc2626':'#94a3b8';
+    });
+    if (charts.execGap) charts.execGap.destroy();
+    charts.execGap = new Chart(document.getElementById('execChartGap'), {
+        type: 'bar',
+        data: {labels, datasets: [{label:'عدد المؤشرات', data: vals, backgroundColor: colors, borderRadius: 8}]},
+        options: {
+            responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+            plugins: { legend: {display: false} },
+            scales: {
+                x: {beginAtZero: true, ticks: {font: {family:'Cairo'}}},
+                y: {ticks: {font: {family:'Cairo', size: 11}}}
+            }
+        }
+    });
+    
+    // Strengths
+    const strengths = KPI_DATA
+        .filter(k => getStatus(k) === 'on_target' && typeof k.gap.gap === 'number')
+        .sort((a,b) => Math.abs(b.gap.gap) - Math.abs(a.gap.gap)).slice(0,3);
+    document.getElementById('top-strengths').innerHTML = strengths.length === 0
+        ? '<div class="empty" style="padding:20px;">لا توجد بيانات كافية</div>'
+        : strengths.map((k, i) => `
+            <div class="list-item">
+                <div class="list-rank">${i+1}</div>
+                <div class="list-content">
+                    <div class="name">${k.k || k.sub}</div>
+                    <div class="meta">${k.s} · ${k.cat || k.cls}</div>
+                    <span class="stat" style="color:#15803d; border-color:#86efac;">القيمة: ${fmt(k.gap.latest, true)} | الهدف: ${k.bm.target_text}</span>
+                </div>
+            </div>
+        `).join('');
+    
+    const weaknesses = KPI_DATA
+        .filter(k => ['far_below','far_above','below_target','above_target'].includes(getStatus(k)) && typeof k.gap.gap === 'number')
+        .sort((a,b) => Math.abs(b.gap.gap) - Math.abs(a.gap.gap)).slice(0,3);
+    document.getElementById('top-weaknesses').innerHTML = weaknesses.length === 0
+        ? '<div class="empty" style="padding:20px;">لا توجد بيانات كافية</div>'
+        : weaknesses.map((k, i) => `
+            <div class="list-item">
+                <div class="list-rank">${i+1}</div>
+                <div class="list-content">
+                    <div class="name">${k.k || k.sub}</div>
+                    <div class="meta">${k.s} · ${k.cat || k.cls}</div>
+                    <span class="stat" style="color:#991b1b; border-color:#fca5a5;">القيمة: ${fmt(k.gap.latest, true)} | الهدف: ${k.bm.target_text}</span>
+                </div>
+            </div>
+        `).join('');
+    
+    const recs = [
+        {title:'مراجعة المؤشرات البعيدة عن الهدف', desc:`${offTarget} مؤشر يحتاج تدخلاً عاجلاً. تشكيل لجنة مراجعة شهرية مع المعنيين.`},
+        {title:'تعزيز المتابعة الدورية', desc:'تقرير أسبوعي لمؤشرات سلامة المرضى وجودة الخدمات مع آلية تصعيد للانحرافات.'},
+        {title:'استثمار نقاط القوة', desc:`${onTarget} مؤشر ضمن الهدف — توثيق أفضل الممارسات وتعميمها.`},
+        {title:'الاتصال المباشر بـ Google Sheets', desc:`الداشبورد يحدّث تلقائياً كل دقيقتين — يكفي إدخال البيانات في الجدول وستظهر هنا.`}
+    ];
+    document.getElementById('recommendations').innerHTML = recs.map((r,i) => `
+        <div class="rec-item">
+            <div class="rec-icon">${i+1}</div>
+            <div class="rec-content">
+                <div class="rec-title">${r.title}</div>
+                <div class="rec-desc">${r.desc}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ============ KPI CARDS PAGE ============
+function setPeriod(p) {
+    currentPeriod = p;
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.toggle('active', b.dataset.period === p));
+    renderKPIs();
+}
+
+function populateFilters() {
+    const cs = document.getElementById('filter-class');
+    const ss = document.getElementById('filter-sheet');
+    const classes = [...new Set(KPI_DATA.map(k=>k.cls))].filter(Boolean);
+    const sheets = [...new Set(KPI_DATA.map(k=>k.s))].filter(Boolean).sort();
+    cs.innerHTML = '<option value="">كل الفئات</option>' + classes.map(c => `<option value="${c}">${c}</option>`).join('');
+    ss.innerHTML = '<option value="">كل المصادر</option>' + sheets.map(s => `<option value="${s}">${s}</option>`).join('');
+    cs.onchange = e => { filters.classification = e.target.value; renderKPIs(); };
+    ss.onchange = e => { filters.sheet = e.target.value; renderKPIs(); };
+    document.getElementById('filter-status').onchange = e => { filters.status = e.target.value; renderKPIs(); };
+    document.getElementById('search').oninput = e => { filters.search = e.target.value; renderKPIs(); };
+}
+
+function resetFilters() {
+    filters = {classification:'', sheet:'', status:'', search:''};
+    document.getElementById('filter-class').value = '';
+    document.getElementById('filter-sheet').value = '';
+    document.getElementById('filter-status').value = '';
+    document.getElementById('search').value = '';
+    renderKPIs();
+}
+
+function getFilteredKPIs() {
+    return KPI_DATA.filter(k => {
+        if (filters.classification && k.cls !== filters.classification) return false;
+        if (filters.sheet && k.s !== filters.sheet) return false;
+        if (filters.status) {
+            const valid = filters.status.split(',');
+            if (!valid.includes(getStatus(k))) return false;
+        }
+        if (filters.search) {
+            const q = filters.search.toLowerCase();
+            const blob = ((k.k||'')+' '+(k.cat||'')+' '+(k.sub||'')+' '+(k.id||'')).toLowerCase();
+            if (!blob.includes(q)) return false;
+        }
+        return true;
+    });
+}
+
+function getPeriodMonths() {
+    if (currentPeriod === 'latest') {
+        // Show only the latest month with data
+        const months = AVAILABLE_MONTHS.length ? AVAILABLE_MONTHS : ALL_MONTHS;
+        return [months[months.length - 1]];
+    }
+    if (currentPeriod === 'all') {
+        return AVAILABLE_MONTHS.length ? AVAILABLE_MONTHS : ALL_MONTHS;
+    }
+    return PERIOD_MONTHS[currentPeriod] || ALL_MONTHS;
+}
+
+function renderKPIs() {
+    const filtered = getFilteredKPIs();
+    const list = document.getElementById('kpi-list');
+    if (filtered.length === 0) {
+        list.innerHTML = '<div class="empty">لا توجد مؤشرات مطابقة</div>';
+        return;
+    }
+    
+    const months = getPeriodMonths();
+    const colsClass = months.length === 1 ? 'cols-3' : months.length <= 3 ? 'cols-3' : months.length <= 4 ? 'cols-4' : months.length <= 6 ? 'cols-6' : 'cols-12';
+    
+    list.innerHTML = filtered.map((k, idx) => {
+        const realIdx = KPI_DATA.indexOf(k);
+        const status = getStatus(k);
+        const si = STATUS_INFO[status];
+        const trend = getYearTrend(k);
+        const bm = k.bm;
+        const target = bm ? bm.target_text : '—';
+        
+        let gapPercent = 50;
+        if (k.gap && typeof k.gap.gap === 'number' && bm && bm.target_parsed && bm.target_parsed.value) {
+            const t = bm.target_parsed.value;
+            if (t > 0) {
+                if (status === 'on_target') gapPercent = 100;
+                else gapPercent = Math.max(15, Math.min(95, 100 + (k.gap.gap / Math.abs(t)) * 100));
+            }
+        }
+        
+        const monthCells = months.map(m => {
+            const v = k.v[m];
+            const has = typeof v === 'number';
+            return `<div class="month-cell ${has?'has-data':'empty'}">
+                <span class="ml">${m}</span>
+                <div class="mv">${has ? fmt(v, true) : '—'}</div>
+            </div>`;
+        }).join('');
+        
+        return `
+            <div class="kpi-card status-${status}" onclick="openModal(${realIdx})">
+                <div class="kpi-card-head">
+                    <div class="kpi-card-meta">${k.s}${k.id ? ' · ' + k.id : ''}</div>
+                    <span class="status-tag ${status}">${si.icon} ${si.label}</span>
+                </div>
+                <div class="name">${k.k || k.sub || '—'}</div>
+                <div class="sub">${k.sub !== k.k ? k.sub + ' · ' : ''}${k.cls}</div>
+                
+                ${bm ? `
+                <div class="kpi-bench">
+                    <div>
+                        <div class="b-label">الهدف</div>
+                        <div class="b-value">${target}</div>
+                    </div>
+                    <div style="text-align:left;">
+                        <div class="b-label">آخر قيمة (${k.latestMonth || '—'})</div>
+                        <div class="b-value">${k.gap.latest !== null ? fmt(k.gap.latest, true) : '—'}</div>
+                    </div>
+                </div>
+                <div class="gap-meter"><div class="gap-fill ${status}" style="width:${gapPercent}%;"></div></div>
+                ` : '<div class="kpi-bench"><div class="b-label">لا يوجد معيار مرجعي محدد</div></div>'}
+                
+                <div class="months-row ${colsClass}">${monthCells}</div>
+                
+                ${trend !== null ? `
+                <div class="kpi-trend">
+                    <span style="color:var(--muted);">اتجاه السنة</span>
+                    <span style="font-weight:800; color:${trend>1?'var(--ok)':trend<-1?'var(--danger)':'var(--muted)'};">
+                        ${trend>1?'↗':trend<-1?'↘':'→'} ${trend>0?'+':''}${trend.toFixed(1)}%
+                    </span>
+                </div>` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+// ============ GAP PAGE ============
+function renderGap() {
+    const counts = {on_target:0,near_target:0,below_target:0,above_target:0,far_below:0,far_above:0,unknown:0};
+    for (const k of KPI_DATA) counts[getStatus(k)]++;
+    const summary = [
+        {key:'on', label:'ضمن الهدف', count: counts.on_target, icon:'✅'},
+        {key:'near', label:'قريب من الهدف', count: counts.near_target, icon:'🟡'},
+        {key:'below', label:'يحتاج تحسين', count: counts.below_target + counts.above_target, icon:'🟠'},
+        {key:'far', label:'بعيد عن الهدف', count: counts.far_below + counts.far_above, icon:'🔴'},
+        {key:'unk', label:'بدون تقييم', count: counts.unknown, icon:'⬜'}
+    ];
+    document.getElementById('gap-summary').innerHTML = summary.map(s => `
+        <div class="gap-card ${s.key}">
+            <div class="num">${s.count}</div>
+            <div class="lbl">${s.icon} ${s.label}</div>
+        </div>
+    `).join('');
+    
+    const severity = {far_below:5,far_above:5,below_target:3,above_target:3,near_target:2,on_target:1,unknown:0};
+    const sorted = [...KPI_DATA].filter(k => k.gap.status !== 'unknown')
+        .sort((a,b) => (severity[b.gap.status]||0) - (severity[a.gap.status]||0));
+    
+    const colorMap = {on:'var(--ok)',near:'var(--warn)',below:'var(--amber)',far:'var(--danger)',unk:'var(--neutral)'};
+    const bgMap = {on:'#dcfce7',near:'#fef3c7',below:'#fed7aa',far:'#fecaca',unk:'#f1f5f9'};
+    const txtMap = {on:'#15803d',near:'#92400e',below:'#9a3412',far:'#991b1b',unk:'var(--muted)'};
+    
+    document.getElementById('gap-table').innerHTML = `
+        <thead>
+            <tr><th>المؤشر</th><th>المصدر</th><th>الهدف</th><th>القيمة الحالية</th><th>الفجوة</th><th>الحالة</th></tr>
+        </thead>
+        <tbody>
+            ${sorted.map(k => {
+                const status = k.gap.status;
+                const si = STATUS_INFO[status];
+                const tone = si.tone;
+                const gv = k.gap.gap;
+                const gText = gv === null ? '—' : (gv > 0 ? '+' : '') + (Math.abs(gv) > 1 ? gv.toFixed(2) : (gv*100).toFixed(1) + 'pp');
+                return `
+                    <tr onclick="openModal(${KPI_DATA.indexOf(k)})">
+                        <td><strong>${k.k || k.sub}</strong><br><span style="font-size:0.75rem; color:var(--muted);">${k.cls}</span></td>
+                        <td>${k.s}${k.id ? ' · ' + k.id : ''}</td>
+                        <td><strong>${k.bm.target_text}</strong></td>
+                        <td><strong>${fmt(k.gap.latest, true)}</strong></td>
+                        <td style="color:${colorMap[tone]}; font-weight:700;">${gText}</td>
+                        <td><span class="gap-cell-status" style="background:${bgMap[tone]}; color:${txtMap[tone]};">${si.icon} ${si.label}</span></td>
+                    </tr>
+                `;
+            }).join('')}
+        </tbody>
+    `;
+}
+
+// ============ TRENDS PAGE ============
+function drawTrends() {
+    const months = AVAILABLE_MONTHS.length ? AVAILABLE_MONTHS : ALL_MONTHS;
+    
+    // Overall monthly average
+    const monthAvgs = months.map(m => {
+        const vals = KPI_DATA.map(k => k.v[m]).filter(v => typeof v === 'number' && v >= 0 && v <= 1);
+        return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length)*100 : null;
+    });
+    
+    if (charts.trends) charts.trends.destroy();
+    charts.trends = new Chart(document.getElementById('trendsChart'), {
+        type: 'line',
+        data: {
+            labels: months,
+            datasets: [{
+                label: 'متوسط الأداء %',
+                data: monthAvgs,
+                borderColor: '#0a1929',
+                backgroundColor: 'rgba(10,25,41,0.1)',
+                fill: true, tension: 0.3,
+                pointRadius: 6, pointHoverRadius: 8,
+                borderWidth: 3, spanGaps: true
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: {display: false}, tooltip: { callbacks: { label: ctx => 'المتوسط: ' + (ctx.parsed.y === null ? '—' : ctx.parsed.y.toFixed(1) + '%') } } },
+            scales: {
+                y: {beginAtZero: true, max: 100, ticks: {font: {family:'Cairo'}, callback: v => v+'%'}},
+                x: {ticks: {font: {family:'Cairo', weight:'700'}}}
+            }
+        }
+    });
+    
+    // By class
+    const classes = [...new Set(KPI_DATA.map(k=>k.cls))];
+    const datasets = classes.map(cls => {
+        const items = KPI_DATA.filter(k => k.cls === cls);
+        const data = months.map(m => {
+            const vals = items.map(k => k.v[m]).filter(v => typeof v === 'number' && v >= 0 && v <= 1);
+            return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length)*100 : null;
+        });
+        return {
+            label: cls,
+            data,
+            borderColor: CLASS_INFO[cls]?.color || '#64748b',
+            backgroundColor: (CLASS_INFO[cls]?.color || '#64748b') + '20',
+            fill: false, tension: 0.3,
+            pointRadius: 4, pointHoverRadius: 6,
+            borderWidth: 2.5, spanGaps: true
+        };
+    });
+    
+    if (charts.trendsByClass) charts.trendsByClass.destroy();
+    charts.trendsByClass = new Chart(document.getElementById('trendsByClassChart'), {
+        type: 'line',
+        data: {labels: months, datasets},
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: {position: 'bottom', labels: {font: {family:'Cairo', size: 11}, padding: 12, boxWidth: 12}} },
+            scales: {
+                y: {beginAtZero: true, max: 100, ticks: {font: {family:'Cairo'}, callback: v => v+'%'}},
+                x: {ticks: {font: {family:'Cairo', weight:'700'}}}
+            }
+        }
+    });
+}
+
+// ============ MODAL ============
+function openModal(idx) {
+    const k = KPI_DATA[idx];
+    const status = getStatus(k);
+    const si = STATUS_INFO[status];
+    const bm = k.bm;
+    const yearTrend = getYearTrend(k);
+    
+    let interpretation = '';
+    if (k.gap && k.gap.latest !== null) {
+        const latest = fmt(k.gap.latest, true);
+        if (status === 'on_target') interpretation = `الأداء الحالي (${latest}) يحقق المعيار. يُنصح بالحفاظ على هذا المستوى.`;
+        else if (status === 'near_target') interpretation = `الأداء (${latest}) قريب من الهدف. مع جهد إضافي يمكن الوصول للمستوى المطلوب.`;
+        else if (['below_target','above_target'].includes(status)) interpretation = `الأداء (${latest}) خارج النطاق المستهدف. يحتاج خطة تحسين.`;
+        else if (['far_below','far_above'].includes(status)) interpretation = `الأداء (${latest}) بعيد بشكل ملحوظ عن الهدف. يستوجب تدخلاً فورياً.`;
+    } else interpretation = 'لا تتوفر بيانات كافية للتقييم.';
+    
+    let trendText = '';
+    if (yearTrend !== null) {
+        if (Math.abs(yearTrend) < 1) trendText = 'الأداء مستقر خلال الأشهر المتاحة.';
+        else if (yearTrend > 0) trendText = `الأداء في تحسّن بنسبة ${yearTrend.toFixed(1)}%.`;
+        else trendText = `الأداء في تراجع بنسبة ${Math.abs(yearTrend).toFixed(1)}%.`;
+    } else trendText = 'لا تتوفر بيانات كافية لقياس الاتجاه.';
+    
+    document.getElementById('modal-title').textContent = k.k || k.sub;
+    document.getElementById('modal-meta').innerHTML = `${k.s}${k.id ? ' · ' + k.id : ''} | ${k.cls} | ${k.cat || k.sub}`;
+    
+    let benchHtml = '';
+    if (bm && bm.levels) {
+        const labels = bm.source === 'BENCH'
+            ? [['l1','معياري','lvl-1'],['l2','تحت ضغط','lvl-2'],['l3','مُتعثّر','lvl-3'],['l4','فاشل','lvl-4']]
+            : [['l1','عالمي','lvl-1'],['l2','مقبول','lvl-2'],['l3','يحتاج تحسين','lvl-3'],['l4','غير مقبول','lvl-4']];
+        benchHtml = `
+            <div class="bench-grid">
+                ${labels.map(([key,label,cls]) => `
+                    <div class="bench-cell ${cls}">
+                        <div class="bl">${label}</div>
+                        <div class="bv">${bm.levels[key] || '—'}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    let valuesHtml = '<table class="values-table"><thead><tr><th>الشهر</th><th>القيمة</th></tr></thead><tbody>';
+    for (const m of ALL_MONTHS) {
+        const v = k.v[m];
+        if (v !== null && v !== undefined) {
+            valuesHtml += `<tr><td>${m} · ${MONTH_AR[m]}</td><td><strong>${fmt(v, true)}</strong></td></tr>`;
+        }
+    }
+    valuesHtml += '</tbody></table>';
+    
+    document.getElementById('modal-body').innerHTML = `
+        <div class="modal-block"><h4>الحالة الحالية</h4>
+            <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap;">
+                <span class="status-tag ${status}" style="font-size:0.85rem; padding:6px 12px;">${si.icon} ${si.label}</span>
+                ${k.gap.latest !== null ? `<span style="font-size:1.4rem; font-weight:900; font-family:Tajawal;">${fmt(k.gap.latest, true)}</span>` : ''}
+                ${bm ? `<span style="color:var(--muted); font-size:0.85rem;">الهدف: <strong>${bm.target_text}</strong></span>` : ''}
+            </div>
+        </div>
+        <div class="modal-block"><h4>التفسير</h4><p>${interpretation}</p></div>
+        <div class="modal-block"><h4>تحليل الاتجاه</h4><p>${trendText}</p></div>
+        <div class="modal-block"><h4>الرسم البياني السنوي</h4>
+            <div style="position:relative; height:300px;"><canvas id="modalChart"></canvas></div>
+        </div>
+        ${benchHtml ? `<div class="modal-block"><h4>المعيار المرجعي (${bm.source})</h4>${benchHtml}</div>` : ''}
+        <div class="modal-block"><h4>القيم الشهرية</h4>${valuesHtml}</div>
+    `;
+    document.getElementById('modal').classList.add('show');
+    
+    setTimeout(() => {
+        const labels = ALL_MONTHS;
+        const vals = labels.map(m => typeof k.v[m] === 'number' ? k.v[m] : null);
+        const datasets = [{
+            label: 'القيمة الفعلية',
+            data: vals,
+            borderColor: '#1e3a5f', backgroundColor: 'rgba(30,58,95,0.08)',
+            fill: true, tension: 0.3,
+            pointRadius: 5, pointHoverRadius: 7,
+            borderWidth: 2.5, spanGaps: true
+        }];
+        if (bm && bm.target_parsed && typeof bm.target_parsed.value === 'number') {
+            datasets.push({
+                label: 'الهدف',
+                data: labels.map(() => bm.target_parsed.value),
+                borderColor: '#c9a961', borderWidth: 2, borderDash: [6,4],
+                fill: false, pointRadius: 0, tension: 0
+            });
+        }
+        if (charts.modalChart) charts.modalChart.destroy();
+        charts.modalChart = new Chart(document.getElementById('modalChart'), {
+            type: 'line',
+            data: {labels, datasets},
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: {position:'bottom', labels: {font: {family:'Cairo'}, padding: 12, boxWidth: 12}} },
+                scales: {y: {ticks: {font: {family:'Cairo'}}}, x: {ticks: {font: {family:'Cairo', size: 10}}}}
+            }
+        });
+    }, 50);
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+
+// ============ MASTER RENDER ============
+function renderAll() {
+    renderExecutive();
+    renderKPIs();
+    renderGap();
+}
+
+// Initial load
+loadData();
+</script>
+</body>
+</html>
